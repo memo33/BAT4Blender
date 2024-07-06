@@ -3,11 +3,8 @@ from .Enums import *
 from .Rig import *
 from bpy.props import *
 
-#
-#   The OK button in the error dialog
-#
 
-
+# The OK button in the error dialog
 class OkOperator(bpy.types.Operator):
     bl_idname = "error.ok"
     bl_label = "OK"
@@ -43,7 +40,7 @@ class MessageOperator(bpy.types.Operator):
 
 class B4BRender(bpy.types.Operator):
     bl_idname = Operators.RENDER.value[0]
-    bl_label = "Render all views & rotations"
+    bl_label = "Render all zooms & rotations"
 
     def execute(self, context):
         group = context.scene.group_id if context.scene.group_id != "default" else None
@@ -52,10 +49,11 @@ class B4BRender(bpy.types.Operator):
                                   type="Info",
                                   message='model is too large to render')
         else:
-            for z in Zoom:
-                for v in Rotation:
-                    Rig.setup(v, z)
-                    Renderer.generate_output(v, z, group)
+            steps = [(z, v) for z in Zoom for v in Rotation]
+            for i, (z, v) in enumerate(steps):
+                print(f"Step ({i+1}/{len(steps)}): zoom {z.value}, rotation {v.name}")
+                Rig.setup(v, z)
+                Renderer.generate_output(v, z, group)
 
         return {"FINISHED"}
 
