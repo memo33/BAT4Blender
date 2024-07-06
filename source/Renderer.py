@@ -102,7 +102,7 @@ class Renderer:
     def check_scale():
         lod = bpy.context.scene.objects[LOD_NAME]
         cam = bpy.context.scene.objects[CAM_NAME]
-        depsgraph = bpy.context.scene.depsgraph
+        depsgraph = bpy.context.evaluated_depsgraph_get()
         os_lod = Renderer.get_orthographic_scale(depsgraph, cam, lod)
         os_gmax = Renderer.get_orthographic_scale_gmax(cam.location[2])
         default_os = Renderer.get_orthographic_scale_gmax(134.35028)  # default location for zoom 5. .
@@ -115,7 +115,7 @@ class Renderer:
     def camera_manouvring(zoom):
         lod = bpy.context.scene.objects[LOD_NAME]
         cam = bpy.context.scene.objects[CAM_NAME]
-        depsgraph = bpy.context.scene.depsgraph
+        depsgraph = bpy.context.evaluated_depsgraph_get()
         bpy.context.scene.camera = cam  # apparently invoke default also checks if the scene has a camera..?
 
         os_lod = Renderer.get_orthographic_scale(depsgraph, cam, lod)
@@ -140,7 +140,7 @@ class Renderer:
         cam.data.shift_x = 0.0
         cam.data.shift_y = 0.0
         # get the 2d camera view coordinates for the LOD... is this a correct assumption?
-        coordinates = [lod.matrix_world * Vector(corner) for corner in lod.bound_box]
+        coordinates = [lod.matrix_world @ Vector(corner) for corner in lod.bound_box]
         coords_2d = [bpy_extras.object_utils.world_to_camera_view(bpy.context.scene, cam, coord) for coord in
                      coordinates]
 
@@ -191,7 +191,7 @@ class Renderer:
 
     @staticmethod
     def get_orthographic_scale(dg, cam, lod):
-        coordinates = [lod.matrix_world * Vector(corner) for corner in lod.bound_box]
+        coordinates = [lod.matrix_world @ Vector(corner) for corner in lod.bound_box]
         co_list = []
         for v in coordinates:
             for f in v:

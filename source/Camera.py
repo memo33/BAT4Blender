@@ -34,14 +34,14 @@ class Camera:
         cam_ob.rotation_euler = angles
         cam_ob.data.shift_x = 0.0
         cam_ob.data.shift_y = 0.0
-        bpy.context.scene.objects.link(cam_ob)
+        bpy.context.collection.objects.link(cam_ob)
 
     @staticmethod
     def update(rotation, zoom):
         (loc, rot) = Camera.get_location_and_rotation(rotation, zoom)
         bpy.data.objects[CAM_NAME].location = loc
         bpy.data.objects[CAM_NAME].rotation_euler = rot
-        bpy.context.scene.update()
+        bpy.context.view_layer.update()
 
 
     @staticmethod
