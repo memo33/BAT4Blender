@@ -73,6 +73,7 @@ class LOD:
         c.matrix_world @= Matrix.Scale(depth / 2, 4, (0, 1, 0))
         c.matrix_world @= Matrix.Scale(height / 2, 4, (0, 0, 1))
         c.hide_render = True
+        c.display_type = 'WIRE'
         bpy.context.collection.objects.link(c)
         bpy.context.view_layer.update()
 
