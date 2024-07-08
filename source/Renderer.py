@@ -71,6 +71,7 @@ class Renderer:
             #     # get viewer pixels
             #     pixels = bpy.data.images['Viewer Node'].pixels
             #     print("checking for empty tiles now")
+            #     # TODO a tile could be empty while transparent parts of the LOD overlap with it (tile might also not be empty in night view)
             #     for px in range(0, len(pixels) - 1, 4):  # basically only checking r channel..
             #         if pixels[px] > 0.0:
             #             filename = tgi_formatter(gid, z.value, v.value, count)

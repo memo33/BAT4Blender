@@ -13,3 +13,17 @@ The general gist of it is as follows.
 
 Notes
 - in Blender print output is send to system console, not to the python console. Go to 'Window' -> 'Toggle System Console' to open it.
+
+## Roadmap
+
+- [x] alpha version (camera positioning, LOD creation, rendering of small objects)
+- [ ] slicing of rendered images if larger than 256 px
+- [ ] slicing of LODs
+- [ ] uv-mapping of LODs
+- [ ] zoom-dependent LODs
+- [ ] renderer settings (lighting/shading/materials/…)
+- [ ] nightlights
+- [ ] darknite settings
+- [ ] HD rendering
+- [ ] conversion of LODs to S3D
+- [ ] showing progress while rendering: https://blender.stackexchange.com/a/71830
