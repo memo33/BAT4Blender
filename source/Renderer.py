@@ -1,6 +1,7 @@
+from __future__ import annotations
 import bpy_extras
 
-from math import tan, atan
+from math import tan, atan, ceil
 from mathutils import Vector
 from .Config import *
 from .Utils import *
@@ -9,6 +10,64 @@ from .Enums import Rotation, Zoom
 # render dimensions need to take view into account
 # sd default
 render_dimension = [16, 32, 64, 128, 256]
+
+_MAX_TILE_SIZE_PX = 256
+_MIN_TILE_SIZE_PX = 4
+_SLOP = 3
+
+
+class Canvas:
+    width_px: int
+    height_px: int
+    num_columns: int
+    num_rows: int
+
+    def __init__(self, width_px: int, height_px: int):
+        assert width_px % _MIN_TILE_SIZE_PX == 0 and height_px % _MIN_TILE_SIZE_PX == 0, "FSH dimensions must be multiple of 4"
+        self.width_px = width_px
+        self.height_px = height_px
+        self.num_columns = ceil(width_px / _MAX_TILE_SIZE_PX)
+        self.num_rows = ceil(height_px / _MAX_TILE_SIZE_PX)
+
+    @staticmethod
+    def create(cam, lod, dim_lod: float) -> Canvas:
+        r"""Create a Canvas for the current LOD and camera, and include a slop margin.
+        The dim_lod parameter is a factor to map the LOD dimensions from the 0..1 range to the pixel range (i.e. [0,256) for zoom 5).
+        """
+        # convert from 3d space to 2d camera space
+        xyz_coords = [lod.matrix_world @ Vector(corner) for corner in lod.bound_box]
+        uv_coords = [bpy_extras.object_utils.world_to_camera_view(bpy.context.scene, cam, c) for c in xyz_coords]
+        u_min = min(c[0] for c in uv_coords)
+        u_max = max(c[0] for c in uv_coords)
+        v_min = min(c[1] for c in uv_coords)
+        v_max = max(c[1] for c in uv_coords)
+
+        max_res = max(bpy.context.scene.render.resolution_x, bpy.context.scene.render.resolution_y)
+        dim_u = (u_max - u_min) * dim_lod * (bpy.context.scene.render.resolution_x / max_res)
+        dim_v = (v_max - v_min) * dim_lod * (bpy.context.scene.render.resolution_y / max_res)
+
+        w = Canvas._round_up_to_fsh_chunk(dim_u + 2 * _SLOP)
+        h = Canvas._round_up_to_fsh_chunk(dim_v + 2 * _SLOP)
+        return Canvas(width_px=w, height_px=h)
+
+    @staticmethod
+    def _round_up_to_fsh_chunk(f) -> int:
+        cnt, rem = divmod(ceil(f), _MAX_TILE_SIZE_PX)
+        result = cnt * _MAX_TILE_SIZE_PX + (0 if rem == 0 else
+                                            8 if rem <= 8 else
+                                            16 if rem <= 16 else
+                                            32 if rem <= 32 else
+                                            64 if rem <= 64 else
+                                            128 if rem <= 128 else
+                                            _MAX_TILE_SIZE_PX)
+        return result
+
+    def tile_dimensions_px(self, row: int, col: int) -> (int, int):
+        assert 0 <= row and row < self.num_rows
+        assert 0 <= col and col < self.num_columns
+        w = self.width_px - col * _MAX_TILE_SIZE_PX if col == self.num_columns - 1  else _MAX_TILE_SIZE_PX
+        h = self.height_px - row * _MAX_TILE_SIZE_PX if row == self.num_rows - 1  else _MAX_TILE_SIZE_PX
+        return w, h
 
 
 class Renderer:
@@ -41,10 +100,9 @@ class Renderer:
 
         bpy.context.scene.render.image_settings.file_format = 'PNG'
         bpy.context.scene.render.image_settings.color_mode = 'RGBA'
-        # this might be a problem as i suspect the scale factor should be calculated for z5 exclusively
-        s_f, dim = Renderer.camera_manouvring(z)
+        canvas = Renderer.camera_manoeuvring(z)
 
-        if dim > 256:
+        if canvas.num_rows > 1 or canvas.num_columns > 1:
             print()
             # Renderer.enable_nodes()
             # row = 0
@@ -91,7 +149,7 @@ class Renderer:
 
     @staticmethod
     def generate_preview(zoom):
-        Renderer.camera_manouvring(zoom)
+        Renderer.camera_manoeuvring(zoom)
         #  reset camera border in case a large view has been rendered.. may want to do this after rendering instead
         bpy.context.scene.render.border_min_x = 0.0
         bpy.context.scene.render.border_max_x = 1.0
@@ -113,7 +171,7 @@ class Renderer:
 
 
     @staticmethod
-    def camera_manouvring(zoom):
+    def camera_manoeuvring(zoom: Zoom) -> Canvas:
         lod = bpy.context.scene.objects[LOD_NAME]
         cam = bpy.context.scene.objects[CAM_NAME]
         depsgraph = bpy.context.evaluated_depsgraph_get()
@@ -123,24 +181,27 @@ class Renderer:
         os_gmax = Renderer.get_orthographic_scale_gmax(cam.location[2])
         default_os = Renderer.get_orthographic_scale_gmax(134.35028)  # default location for zoom 5. .
         final_os = default_os + (default_os - os_gmax)
-        s_f = Renderer.get_scale_factor(os_lod, final_os)
-        # TODO Scale factor does not have to increment in powers of 2. All that
-        # matters is that dimensions of rendered images are multiples of 4 px
-        # and <= 256 px.
 
-        os_cam = final_os * s_f
-        dim = render_dimension[zoom.value] * s_f
-        cam.data.ortho_scale = os_cam
-        Renderer.offset_camera(cam, lod, dim)
-        print("scale is {} and output dim is {}".format(s_f, dim))
+        # Note that final_os is independent of the LOD and satisfies the following law:
+        # final_os : render_dimension[zoom.value] == os_lod : "actual pixel dimension of LOD"
+        dim_lod = render_dimension[zoom.value] * os_lod / final_os
+        cam.data.ortho_scale = os_lod
+        canvas = Canvas.create(cam, lod, dim_lod=dim_lod)
 
-        return s_f, dim
+        # Adjustment of the orthographic scale to account for the added slop margin and the rounding to integer resolutions:
+        cam.data.ortho_scale *= max(canvas.width_px, canvas.height_px) / dim_lod
+        bpy.context.scene.render.resolution_x = canvas.width_px
+        bpy.context.scene.render.resolution_y = canvas.height_px
+        Renderer.offset_camera(cam, lod, canvas.width_px, canvas.height_px)
+
+        print(f"Output dimensions are {canvas.width_px}×{canvas.height_px}")
+        return canvas
 
     @staticmethod
-    def offset_camera(cam, lod, dim):
-        # since the renders can be rectangular assign to x, y
-        dim_x = dim
-        dim_y = dim
+    def offset_camera(cam, lod, dim_x, dim_y):
+        r"""Position the camera such that the LOD is aligned with the top and
+        left edges of the rendered image, accounting for the slop margin.
+        """
         cam.data.shift_x = 0.0
         cam.data.shift_y = 0.0
         # get the 2d camera view coordinates for the LOD... is this a correct assumption?
@@ -149,42 +210,23 @@ class Renderer:
                      coordinates]
 
         # grab outer left and top vertex in the camera view
-        # map their 0..1 range to pixels to determine how far theLOD is from the left and top edges
-        min_x = min(c[0] for c in coords_2d)
-        max_y = max(c[1] for c in coords_2d)
+        # map their 0..1 range to pixels to determine how far the LOD is from the left and top edges
+        x_min = min(c[0] for c in coords_2d)
+        y_max = max(c[1] for c in coords_2d)
+        x_left = x_min * dim_x
+        y_top = y_max * dim_y
 
-        x_left = min_x * dim_x
-        y_top = max_y * dim_y
-        # print("left x")
-        # print(x_left)
-        # print("top y")
-        # print(y_top)
-
-        # map the pixel values back to a 0..1 range to use as offset
-        slop = 2  # keep a 2 pixel distance from edge, can be made variable later for different levels
-        x_d = translate(x_left - slop, 0, dim_x, 0.0, 1.0)
-        y_d = translate(y_top - (dim_y - slop), 0, dim_y, 0.0, 1.0)
+        x_d = translate(x_left - _SLOP, 0, dim_x, 0.0, dim_x / max(dim_x, dim_y))
+        y_d = translate(y_top - (dim_y - _SLOP), 0, dim_y, 0.0, dim_y / max(dim_x, dim_y))
         cam.data.shift_x = x_d
         cam.data.shift_y = y_d
-
-        # TODO check if either right or bottom half render square is empty
-        # i.e. does the LOD extend into half of that
-        # if so the corresponding render dimension needs to be halved, and then reposition camera again
-        # so yeah lets not do this, instead just make sure to write all sections with a correct file name
-        # because that way, on convert / import as fsh the 'blank' tiles will just not be applied to the LOD
-        # however, this is a bit wasteful as it does limit the render size (i.e. 0..F is simply taken up earlier)
-        # also, related, I have no way of checking if part of the model is in the lower right quadrant as the
-        # positional check is performed on a vertex basis
-        bpy.context.scene.render.resolution_x = dim_x
-        bpy.context.scene.render.resolution_y = dim_y
 
     @staticmethod
     def get_scale_factor(os_lod, os_gmax):
         assert os_gmax > 0 and os_lod > 0
         factor = 1
-        while os_lod > os_gmax:
-            factor *= 2
-            os_gmax *= 2
+        while os_lod > (os_gmax * factor):
+            factor += 1
         return factor
 
     @staticmethod
