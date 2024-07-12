@@ -17,7 +17,7 @@ Notes
 ## Roadmap
 
 - [x] alpha version (camera positioning, LOD creation, rendering of small objects)
-- [ ] slicing of rendered images if larger than 256 px
+- [x] slicing of rendered images if larger than 256 px
 - [ ] slicing of LODs
 - [ ] uv-mapping of LODs
 - [ ] zoom-dependent LODs

@@ -44,16 +44,11 @@ class B4BRender(bpy.types.Operator):
 
     def execute(self, context):
         group = context.scene.group_id if context.scene.group_id != "default" else None
-        if Renderer.check_scale():
-            bpy.ops.error.message('INVOKE_DEFAULT',
-                                  type="Info",
-                                  message='model is too large to render')
-        else:
-            steps = [(z, v) for z in Zoom for v in Rotation]
-            for i, (z, v) in enumerate(steps):
-                print(f"Step ({i+1}/{len(steps)}): zoom {z.value}, rotation {v.name}")
-                Rig.setup(v, z)
-                Renderer.generate_output(v, z, group)
+        steps = [(z, v) for z in Zoom for v in Rotation]
+        for i, (z, v) in enumerate(steps):
+            print(f"Step ({i+1}/{len(steps)}): zoom {z.value}, rotation {v.name}")
+            Rig.setup(v, z)
+            Renderer.generate_output(v, z, group)
 
         return {"FINISHED"}
 

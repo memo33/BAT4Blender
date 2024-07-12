@@ -1,6 +1,7 @@
 from __future__ import annotations
 import bpy_extras
 
+from collections.abc import Iterator
 from math import tan, atan, ceil
 from mathutils import Vector
 from .Config import *
@@ -69,6 +70,18 @@ class Canvas:
         h = self.height_px - row * _MAX_TILE_SIZE_PX if row == self.num_rows - 1  else _MAX_TILE_SIZE_PX
         return w, h
 
+    def tiles(self) -> Iterator[(int, int)]:
+        for row in range(self.num_rows):
+            for col in range(self.num_columns):
+                yield row, col
+
+    def tile_border_fractional_LRTB(self, row: int, col: int) -> (float, float, float, float):
+        l = col * _MAX_TILE_SIZE_PX / self.width_px
+        r = min((col+1) * _MAX_TILE_SIZE_PX, self.width_px) / self.width_px
+        t = row * _MAX_TILE_SIZE_PX / self.height_px
+        b = min((row+1) * _MAX_TILE_SIZE_PX, self.height_px) / self.height_px
+        return l, r, t, b
+
 
 class Renderer:
 
@@ -103,47 +116,30 @@ class Renderer:
         canvas = Renderer.camera_manoeuvring(z)
 
         if canvas.num_rows > 1 or canvas.num_columns > 1:
-            print()
-            # Renderer.enable_nodes()
-            # row = 0
-            # count = 0
-            # b = 1 / s_f
-            # for i in range(0, s_f ** 2):
-            #     col = i % s_f
-            #     min_x = col * b
-            #     max_x = min_x + b
-            #     max_y = 1 - (row * b)
-            #     min_y = max_y - b
-            #     # print(min_x, max_x, min_y, max_y)
-            #     # print("col {} and row {}".format(col, row))
-            #     bpy.context.scene.render.use_border = True
-            #     bpy.context.scene.render.use_crop_to_border = True
-            #     bpy.context.scene.render.border_min_x = min_x
-            #     bpy.context.scene.render.border_max_x = max_x
-            #     bpy.context.scene.render.border_min_y = min_y
-            #     bpy.context.scene.render.border_max_y = max_y
-            #     path = get_relative_path_for("B4B_{}_{}.png".format(col, row))
-            #     # bpy.context.scene.render.filepath = get_relative_path_for("B4B_{}_{}.png".format(col, row))
-            #
-            #     bpy.ops.render.render()
-            #     # get viewer pixels
-            #     pixels = bpy.data.images['Viewer Node'].pixels
-            #     print("checking for empty tiles now")
-            #     # TODO a tile could be empty while transparent parts of the LOD overlap with it (tile might also not be empty in night view)
-            #     for px in range(0, len(pixels) - 1, 4):  # basically only checking r channel..
-            #         if pixels[px] > 0.0:
-            #             filename = tgi_formatter(gid, z.value, v.value, count)
-            #             path = get_relative_path_for("{}.png".format(filename))
-            #             bpy.data.images['Viewer Node'].save_render(path)
-            #             count += 1
-            #             print("saved image {}".format(path))
-            #             break
-            #
-            #     if col + 1 == s_f:
-            #         row += 1
+            Renderer.enable_nodes()  # the nodes are mainly used as workaround to access the resulting rendered image
+
+            for count, (row, col) in enumerate(canvas.tiles()):
+                left, right, top, bottom = canvas.tile_border_fractional_LRTB(row, col)
+
+                bpy.context.scene.render.use_border = True
+                bpy.context.scene.render.use_crop_to_border = True
+                bpy.context.scene.render.border_min_x = left
+                bpy.context.scene.render.border_max_x = right
+                bpy.context.scene.render.border_min_y = 1 - bottom
+                bpy.context.scene.render.border_max_y = 1 - top
+
+                bpy.ops.render.render()
+                filename = tgi_formatter(gid, z.value, v.value, count)
+                path = get_relative_path_for(f"{filename}.png")
+                img = bpy.data.images['Viewer Node']
+                img.save_render(path)
+                assert tuple(img.size) == canvas.tile_dimensions_px(row, col), \
+                        f"Rendered image has unexpected size: {tuple(img.size)} instead of {canvas.tile_dimensions_px(row, col)}"
+                print(f"Saved image {path}")
+
         else:
             filename = tgi_formatter(gid, z.value, v.value, 0)
-            bpy.context.scene.render.filepath = get_relative_path_for("{}.png".format(filename))
+            bpy.context.scene.render.filepath = get_relative_path_for(f"{filename}.png")
             print("rendering single image")
             bpy.ops.render.render(write_still=True)
 
