@@ -94,7 +94,7 @@ class Canvas:
     def _plane_from_vertices(name: str, bottom_left: Vector, bottom_right: Vector, top_left: Vector, top_right: Vector):
         mesh = bpy.data.meshes.new(name)
         obj = bpy.data.objects.new(name, mesh)
-        bpy.context.collection.objects.link(obj)
+        b4b_collection().objects.link(obj)
         faces = [(0, 1, 3, 2)]
         mesh.from_pydata([bottom_left, bottom_right, top_left, top_right], [], faces)
         mesh.update(calc_edges=True)

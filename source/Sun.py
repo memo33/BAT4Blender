@@ -2,6 +2,7 @@ import bpy
 from math import radians
 from .Config import *
 from .Enums import Rotation
+from .Utils import b4b_collection
 
 sun_loc = (0, 0, 1000)  # sun position doesn't matter, just put it somewhere up high and out of the way
 s_x = radians(180)
@@ -29,7 +30,7 @@ class Sun:
         sun_ob.rotation_mode = "XYZ"
         sun_ob.location = sun_loc
         sun_ob.rotation_euler = rotation
-        bpy.context.collection.objects.link(sun_ob)
+        b4b_collection().objects.link(sun_ob)
         bpy.context.view_layer.update()
 
 

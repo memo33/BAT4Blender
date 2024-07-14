@@ -28,3 +28,13 @@ def translate(value, left_min, left_max, right_min, right_max):
 
     # Convert the 0-1 range into a value in the right range.
     return right_min + (value_scaled * right_span)
+
+
+def b4b_collection():
+    from .Config import COLLECTION_NAME
+    if COLLECTION_NAME in bpy.data.collections:
+        return bpy.data.collections[COLLECTION_NAME]
+    else:
+        c = bpy.data.collections.new(COLLECTION_NAME)
+        bpy.context.scene.collection.children.link(c)
+        return c

@@ -3,6 +3,7 @@ import bpy_extras
 from math import radians, sin, cos
 from .Config import CAM_NAME
 from .Enums import Zoom, Rotation
+from .Utils import b4b_collection
 
 camera_range = 190  # distance of camera from origin
 angle_zoom = [radians(60), radians(55), radians(50), radians(45)]
@@ -33,7 +34,7 @@ class Camera:
         cam_ob.rotation_euler = angles
         cam_ob.data.shift_x = 0.0
         cam_ob.data.shift_y = 0.0
-        bpy.context.collection.objects.link(cam_ob)
+        b4b_collection().objects.link(cam_ob)
 
     @staticmethod
     def update(rotation, zoom):

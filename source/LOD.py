@@ -3,7 +3,7 @@ import bmesh
 from mathutils import Vector, Matrix
 from typing import List, Any
 from .Config import LOD_NAME
-from .Utils import get_relative_path_for
+from .Utils import get_relative_path_for, b4b_collection
 from .Renderer import Canvas
 
 class LOD:
@@ -76,7 +76,7 @@ class LOD:
         c.matrix_world @= Matrix.Scale(height / 2, 4, (0, 0, 1))
         c.hide_render = True
         c.display_type = 'WIRE'
-        bpy.context.collection.objects.link(c)
+        b4b_collection().objects.link(c)
         bpy.context.view_layer.update()
 
     @staticmethod
@@ -125,7 +125,7 @@ class LOD:
         obj.scale = lod.scale
         obj.rotation_euler = lod.rotation_euler
         obj.hide_render = True
-        bpy.context.collection.objects.link(obj)
+        b4b_collection().objects.link(obj)
         return obj
 
     def slice(lod, cam, canvas_tile):
@@ -156,7 +156,7 @@ class LOD:
         slice_obj.scale = lod_visible.scale
         slice_obj.rotation_euler = lod_visible.rotation_euler
         slice_obj.hide_render = True
-        bpy.context.collection.objects.link(slice_obj)
+        b4b_collection().objects.link(slice_obj)
 
         bpy.ops.object.mode_set(mode='OBJECT')
         bpy.data.meshes.remove(lod_visible.data, do_unlink=True)
