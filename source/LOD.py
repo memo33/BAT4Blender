@@ -1,8 +1,10 @@
 import bpy
+import bmesh
 from mathutils import Vector, Matrix
 from typing import List, Any
 from .Config import LOD_NAME
 from .Utils import get_relative_path_for
+from .Renderer import Canvas
 
 class LOD:
     @staticmethod
@@ -15,7 +17,7 @@ class LOD:
     def get_all_bound_boxes() -> List:
         b_boxes = []
         for obj in bpy.context.scene.objects:
-            if obj.type == 'MESH':
+            if obj.type == 'MESH' and not obj.hide_render:
                 bbox_corners = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
                 b_boxes.append(bbox_corners)
         return b_boxes
@@ -91,3 +93,71 @@ class LOD:
 
         else:
             print("there is no LOD to export!")
+
+    @staticmethod
+    def _copy_bmesh_with_face_filter(mesh: bmesh.types.BMesh, name: str, face_filter) -> bpy.types.Mesh:
+        mesh.verts.index_update()  # important if vertices have been added that still have index -1
+
+        faces = [f for f in mesh.faces if face_filter(f)]
+        vertices = list(set(v for f in faces for v in f.verts))
+        vmap = {vert.index: i for i, vert in enumerate(vertices)}  # maps vertex indices of old mesh to new mesh (with fewer vertices)
+        coords = [v.co for v in vertices]
+        polys = [tuple(vmap[v.index] for v in f.verts) for f in faces]
+
+        mesh2 = bpy.data.meshes.new(name=name)
+        mesh2.from_pydata(coords, [], polys)
+        mesh2.update(calc_edges=True)
+        return mesh2
+        # bm2 = bmesh.new()
+        # bm2.from_mesh(mesh)
+        # bpy.data.meshes.remove(mesh)
+
+    def copy_visible_faces(lod, cam) -> bpy.types.Object:
+        r"""Create a copy of the LOD containing only faces whose normals point towards the camera.
+        """
+        cam_view_direction = cam.matrix_world @ Vector([0, 0, -1]) - cam.location
+        bm = bmesh.new()
+        bm.from_mesh(lod.data)
+        name = 'b4b_lod_visible'
+        mesh = LOD._copy_bmesh_with_face_filter(bm, name, lambda f: f.normal.dot(cam_view_direction) < 0)
+        obj = bpy.data.objects.new(name, mesh)
+        obj.location = lod.location
+        obj.scale = lod.scale
+        obj.rotation_euler = lod.rotation_euler
+        obj.hide_render = True
+        bpy.context.collection.objects.link(obj)
+        return obj
+
+    def slice(lod, cam, canvas_tile):
+        r"""Create a LOD slice object cut out by the given canvas tile.
+        """
+        lod_visible = LOD.copy_visible_faces(lod, cam)  # as the knife_project modifies this object, we create it anew for each tile
+
+        if bpy.context.mode != 'OBJECT':
+            bpy.ops.object.mode_set(mode='OBJECT')
+        bpy.ops.object.select_all(action='DESELECT')
+        bpy.context.view_layer.objects.active = lod_visible
+
+        # apply knife project operator
+        bpy.ops.object.mode_set(mode='EDIT')
+        canvas_tile.select_set(True)
+        ctx_override = Canvas.find_view3d()
+        assert 'area' in ctx_override
+        with bpy.context.temp_override(**ctx_override):
+            bpy.ops.mesh.knife_project()
+
+        # create sliced LOD from selected faces
+        bm = bmesh.from_edit_mesh(bpy.context.edit_object.data)
+        name = 'b4b_lod_slice'
+        slice_mesh = LOD._copy_bmesh_with_face_filter(bm, name, lambda f: f.select)
+
+        slice_obj = bpy.data.objects.new(name, slice_mesh)
+        slice_obj.location = lod_visible.location
+        slice_obj.scale = lod_visible.scale
+        slice_obj.rotation_euler = lod_visible.rotation_euler
+        slice_obj.hide_render = True
+        bpy.context.collection.objects.link(slice_obj)
+
+        bpy.ops.object.mode_set(mode='OBJECT')
+        bpy.data.meshes.remove(lod_visible.data, do_unlink=True)
+        return slice_obj

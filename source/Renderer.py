@@ -18,6 +18,8 @@ _SLOP = 3
 
 
 class Canvas:
+    r"""A 2D rendering canvas, divided into tiles of size at most 256 px.
+    """
     width_px: int
     height_px: int
     num_columns: int
@@ -81,6 +83,59 @@ class Canvas:
         t = row * _MAX_TILE_SIZE_PX / self.height_px
         b = min((row+1) * _MAX_TILE_SIZE_PX, self.height_px) / self.height_px
         return l, r, t, b
+
+    @staticmethod
+    def find_view3d():
+        for area in bpy.context.window.screen.areas:
+            if area.type == 'VIEW_3D':
+                v3d = area.spaces[0]
+                # rv3d = v3d.region_3d
+                for region in area.regions:
+                    if region.type == 'WINDOW':
+                        return {'area': area, 'space': v3d, 'region': region}
+        return {}
+
+    @staticmethod
+    def _plane_from_vertices(name: str, bottom_left: Vector, bottom_right: Vector, top_left: Vector, top_right: Vector):
+        mesh = bpy.data.meshes.new(name)
+        obj = bpy.data.objects.new(name, mesh)
+        bpy.context.collection.objects.link(obj)
+        faces = [(0, 1, 3, 2)]
+        mesh.from_pydata([bottom_left, bottom_right, top_left, top_right], [], faces)
+        mesh.update(calc_edges=True)
+        return obj
+
+    @staticmethod
+    def _mean(vertices: list) -> Vector:
+        assert vertices, "vertices list must not be empty"
+        return sum(vertices[1:], vertices[0]) / len(vertices)
+
+    def create_tile_object(self, cam, row: int, col: int):
+        r"""Create a plane object representing the canvas tile physically."""
+        l, r, t, b = self.tile_border_fractional_LRTB(row=row, col=col)
+        cam_verts = cam.data.view_frame(scene=bpy.context.scene)  # with scene keyword, this shrinks shorter dimension to fit resolution
+        cam_center = Canvas._mean(cam_verts)
+        assert len(cam_verts) == 4
+        bot_l, = [v for v in cam_verts if v[0] < cam_center[0] and v[1] < cam_center[1]]
+        bot_r, = [v for v in cam_verts if v[0] > cam_center[0] and v[1] < cam_center[1]]
+        top_l, = [v for v in cam_verts if v[0] < cam_center[0] and v[1] > cam_center[1]]
+        top_r, = [v for v in cam_verts if v[0] > cam_center[0] and v[1] > cam_center[1]]
+
+        def weighted(s0, s1) -> Vector:
+            return (1-s0) * ((1-s1) * top_l + s1 * bot_l) + s0 * ((1-s1) * top_r + s1 * bot_r)
+            # return top_l + s0 * (top_r - top_l) + s1 * (bot_l - top_l)
+
+        obj = Canvas._plane_from_vertices(
+                'b4b_canvas_tile',
+                bottom_left=weighted(l, b),
+                bottom_right=weighted(r, b),
+                top_left=weighted(l, t),
+                top_right=weighted(r, t))
+        obj.rotation_euler = cam.rotation_euler
+        obj.location = cam.location
+        obj.hide_render = True
+        obj.display_type = 'WIRE'
+        return obj
 
 
 class Renderer:

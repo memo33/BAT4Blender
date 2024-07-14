@@ -18,7 +18,7 @@ Notes
 
 - [x] alpha version (camera positioning, LOD creation, rendering of small objects)
 - [x] slicing of rendered images if larger than 256 px
-- [ ] slicing of LODs
+- [ ] slicing of LODs (https://blender.stackexchange.com/a/43358, https://blender.stackexchange.com/a/147457)
 - [ ] uv-mapping of LODs
 - [ ] zoom-dependent LODs
 - [ ] renderer settings (lighting/shading/materials/…)

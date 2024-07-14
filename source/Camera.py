@@ -2,6 +2,7 @@ import bpy
 from math import radians, sin, cos
 from .Config import CAM_NAME
 from .Enums import Zoom, Rotation
+from .Renderer import Canvas
 
 camera_range = 190  # distance of camera from origin
 angle_zoom = [radians(60), radians(55), radians(50), radians(45)]
@@ -61,6 +62,15 @@ class Camera:
     #             bpy.data.cameras.remove(ob.data, do_unlink=True)
     #     (location, rotation) = Camera.get_location_and_rotation(rotation, zoom)
     #     Camera.set_camera(location, rotation)
+
+    @staticmethod
+    def camera_to_view3d():
+        override = Canvas.find_view3d()
+        assert 'area' in override
+        override['active_object'] = bpy.data.objects[CAM_NAME]
+        with bpy.context.temp_override(**override):
+            bpy.ops.view3d.object_as_camera()
+            override['region'].data.update()  # updates the matrices so that the change of view takes affect immediately
 
 
 # debug
