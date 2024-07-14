@@ -76,6 +76,7 @@ class B4BLODExport(bpy.types.Operator):
 
 
 class B4BLODAdd(bpy.types.Operator):
+    r"""Fit the LOD around all meshes that are rendered. Create the LOD if necessary"""
     bl_idname = Operators.LOD_FIT.value[0]
     bl_label = "LOD fit"
 

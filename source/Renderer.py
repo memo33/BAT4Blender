@@ -1,5 +1,4 @@
 from __future__ import annotations
-import bpy_extras
 
 from collections.abc import Iterator
 from math import tan, atan, ceil
@@ -37,13 +36,9 @@ class Canvas:
         r"""Create a Canvas for the current LOD and camera, and include a slop margin.
         The dim_lod parameter is a factor to map the LOD dimensions from the 0..1 range to the pixel range (i.e. [0,256) for zoom 5).
         """
+        from .Camera import Camera
         # convert from 3d space to 2d camera space
-        xyz_coords = [lod.matrix_world @ Vector(corner) for corner in lod.bound_box]
-        uv_coords = [bpy_extras.object_utils.world_to_camera_view(bpy.context.scene, cam, c) for c in xyz_coords]
-        u_min = min(c[0] for c in uv_coords)
-        u_max = max(c[0] for c in uv_coords)
-        v_min = min(c[1] for c in uv_coords)
-        v_max = max(c[1] for c in uv_coords)
+        u_min, u_max, v_max, v_min = Camera.lod_bounds_LRTB(cam, lod)
 
         max_res = max(bpy.context.scene.render.resolution_x, bpy.context.scene.render.resolution_y)
         dim_u = (u_max - u_min) * dim_lod * (bpy.context.scene.render.resolution_x / max_res)
@@ -253,17 +248,14 @@ class Renderer:
         r"""Position the camera such that the LOD is aligned with the top and
         left edges of the rendered image, accounting for the slop margin.
         """
+        from .Camera import Camera
         cam.data.shift_x = 0.0
         cam.data.shift_y = 0.0
         # get the 2d camera view coordinates for the LOD... is this a correct assumption?
-        coordinates = [lod.matrix_world @ Vector(corner) for corner in lod.bound_box]
-        coords_2d = [bpy_extras.object_utils.world_to_camera_view(bpy.context.scene, cam, coord) for coord in
-                     coordinates]
+        x_min, x_max, y_max, y_min = Camera.lod_bounds_LRTB(cam, lod)
 
         # grab outer left and top vertex in the camera view
         # map their 0..1 range to pixels to determine how far the LOD is from the left and top edges
-        x_min = min(c[0] for c in coords_2d)
-        y_max = max(c[1] for c in coords_2d)
         x_left = x_min * dim_x
         y_top = y_max * dim_y
 
@@ -282,7 +274,9 @@ class Renderer:
 
     @staticmethod
     def get_orthographic_scale(dg, cam, lod):
-        coordinates = [lod.matrix_world @ Vector(corner) for corner in lod.bound_box]
+        # This uses the same vertices as `Camera.lod_bounds_LRTB`, as that
+        # determines the dimensions of the camera viewport.
+        coordinates = (lod.matrix_world @ v.co for v in lod.data.vertices)
         coordinates_flat = [vi for v in coordinates for vi in v]
         loc, scale = cam.camera_fit_coords(dg, coordinates_flat)
         return scale
