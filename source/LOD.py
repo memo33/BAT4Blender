@@ -156,6 +156,11 @@ class LOD:
         slice_obj.scale = lod_visible.scale
         slice_obj.rotation_euler = lod_visible.rotation_euler
         slice_obj.hide_render = True
+
+        # TODO if canvas_tile is new, maybe we need to call bpy.context.view_layer.update() for up-to-date matrices
+        slice_obj.parent = canvas_tile
+        slice_obj.matrix_parent_inverse = canvas_tile.matrix_world.inverted()  # TODO or .matrix_local?
+
         b4b_collection().objects.link(slice_obj)
 
         bpy.ops.object.mode_set(mode='OBJECT')

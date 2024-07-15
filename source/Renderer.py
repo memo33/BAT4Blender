@@ -126,10 +126,16 @@ class Canvas:
                 bottom_right=weighted(r, b),
                 top_left=weighted(l, t),
                 top_right=weighted(r, t))
-        obj.rotation_euler = cam.rotation_euler
         obj.location = cam.location
+        obj.scale = cam.scale
+        obj.rotation_euler = cam.rotation_euler
         obj.hide_render = True
         obj.display_type = 'WIRE'
+
+        # TODO if cam is new, maybe we need to call bpy.context.view_layer.update() for up-to-date matrices
+        obj.parent = cam
+        obj.matrix_parent_inverse = cam.matrix_world.inverted()  # TODO or .matrix_local?
+
         return obj
 
 
