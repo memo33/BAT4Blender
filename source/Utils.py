@@ -30,6 +30,10 @@ def translate(value, left_min, left_max, right_min, right_max):
     return right_min + (value_scaled * right_span)
 
 
+def clip(value: float, min: float, max: float) -> float:
+    return min if value < min else max if value > max else value
+
+
 def b4b_collection():
     from .Config import COLLECTION_NAME
     if COLLECTION_NAME in bpy.data.collections:

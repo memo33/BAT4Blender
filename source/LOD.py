@@ -3,7 +3,7 @@ import bmesh
 from mathutils import Vector, Matrix
 from typing import List, Any
 from .Config import LOD_NAME
-from .Utils import get_relative_path_for, b4b_collection
+from .Utils import get_relative_path_for, b4b_collection, translate, clip
 from .Renderer import Canvas
 
 class LOD:
@@ -164,5 +164,34 @@ class LOD:
         b4b_collection().objects.link(slice_obj)
 
         bpy.ops.object.mode_set(mode='OBJECT')
+        # set uv coordinates
+        uv_map = LOD._compute_uv_of_lod_slice(slice_obj)
+        uv_layer = slice_obj.data.uv_layers.new(name='UVmap')
+        for polygon in slice_obj.data.polygons:
+            for loopindex in polygon.loop_indices:  # loopindex corresponds to a "face vertex"
+                meshloop = slice_obj.data.loops[loopindex]
+                meshuvloop = uv_layer.data[loopindex]
+                meshuvloop.uv.xy = uv_map[meshloop.vertex_index]
+
         bpy.data.meshes.remove(lod_visible.data, do_unlink=True)
         return slice_obj
+
+    def _compute_uv_of_lod_slice(lod_slice):
+        assert lod_slice.parent is not None, "Parent of LOD slice should be the corresponding canvas_tile."
+        canvas_tile = lod_slice.parent
+
+        tile_coords = [canvas_tile.matrix_local @ v.co for v in canvas_tile.data.vertices]
+        x_min = min(c[0] for c in tile_coords)
+        x_max = max(c[0] for c in tile_coords)
+        y_min = min(c[1] for c in tile_coords)
+        y_max = max(c[1] for c in tile_coords)
+
+        def vert2uv(vert):
+            # the local coordinates are relative to the parent (canvas_tile),
+            # so first two coordinates correspond to u,v (up to stretching)
+            c = lod_slice.matrix_local @ vert.co
+            return (clip(translate(c[0], x_min, x_max, 0.0, 1.0), 0, 1),
+                    clip(translate(c[1], y_min, y_max, 0.0, 1.0), 0, 1))
+
+        uv_map = {v.index: vert2uv(v) for v in lod_slice.data.vertices}
+        return uv_map
