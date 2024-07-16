@@ -8,7 +8,7 @@ def tgi_formatter(gid, z, v, no):
     t = 0  # default to day render
     iid = "0003{}{}{}{}".format(t, z, v, no)
 
-    return "{}-{}-{}".format(tid, gid, iid)
+    return "{}_{}_{}".format(tid, gid, iid)
 
 
 def get_relative_path_for(fn):

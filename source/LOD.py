@@ -4,7 +4,7 @@ from mathutils import Vector, Matrix
 from typing import List, Any
 from .Config import LOD_NAME
 from .Utils import get_relative_path_for, b4b_collection, translate, clip
-from .Renderer import Canvas
+from .Enums import Rotation
 
 class LOD:
     @staticmethod
@@ -80,19 +80,26 @@ class LOD:
         bpy.context.view_layer.update()
 
     @staticmethod
-    def export():
-        if LOD_NAME in bpy.data.objects:
-            with bpy.context.temp_override(selected_objects=[bpy.data.objects[LOD_NAME]]):
-                bpy.ops.export_scene.obj(
-                    filepath="{}.obj".format(get_relative_path_for(LOD_NAME)),
-                    check_existing=False,
-                    axis_forward='Y',
-                    axis_up='Z',
-                    use_selection=True
-                )
-
-        else:
-            print("there is no LOD to export!")
+    def export(lod_objects, filepath: str, rotation: Rotation):  # TODO default arguments for GUI export button?
+        r"""Export a list of sliced LOD objects as a single .obj file"""
+        # if LOD_NAME in bpy.data.objects:
+        with bpy.context.temp_override(selected_objects=lod_objects):
+            # In Blender 4+, bpy.ops.wm.obj_export can be used instead, but arguments differ
+            bpy.ops.export_scene.obj(
+                filepath=filepath,  # "{}.obj".format(get_relative_path_for(LOD_NAME)),
+                check_existing=False,
+                axis_up='Y',
+                axis_forward=
+                    '-Z' if rotation == Rotation.SOUTH else
+                    'X' if rotation == Rotation.EAST else
+                    'Z' if rotation == Rotation.NORTH else
+                    '-X',  # WEST
+                use_selection=True,
+                use_materials=False,
+                use_triangles=True,
+            )
+        # else:
+        #     print("there is no LOD to export!")
 
     @staticmethod
     def _copy_bmesh_with_face_filter(mesh: bmesh.types.BMesh, name: str, face_filter) -> bpy.types.Mesh:
@@ -108,9 +115,6 @@ class LOD:
         mesh2.from_pydata(coords, [], polys)
         mesh2.update(calc_edges=True)
         return mesh2
-        # bm2 = bmesh.new()
-        # bm2.from_mesh(mesh)
-        # bpy.data.meshes.remove(mesh)
 
     def copy_visible_faces(lod, cam) -> bpy.types.Object:
         r"""Create a copy of the LOD containing only faces whose normals point towards the camera.
@@ -130,7 +134,10 @@ class LOD:
 
     def slice(lod, cam, canvas_tile):
         r"""Create a LOD slice object cut out by the given canvas tile.
+        This requires a View3D editor that has already been set to the camera view.
         """
+        from .Renderer import Canvas
+        bpy.context.view_layer.update()  # this is important to get up-to-date local coordinates, as tiles were just created
         lod_visible = LOD.copy_visible_faces(lod, cam)  # as the knife_project modifies this object, we create it anew for each tile
         lod_visible.parent = canvas_tile  # for local coordinates (to find vertices inside tile boundary)
         lod_visible.matrix_parent_inverse = canvas_tile.matrix_world.inverted()  # TODO or .matrix_local?

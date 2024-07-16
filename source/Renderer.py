@@ -166,15 +166,35 @@ class Renderer:
 
     @staticmethod
     def generate_output(v, z, gid):
-
+        from .LOD import LOD
+        from .Camera import Camera
         bpy.context.scene.render.image_settings.file_format = 'PNG'
         bpy.context.scene.render.image_settings.color_mode = 'RGBA'
+        # First, position the camera for the current zoom and rotation. TODO Why does this not use v?
         canvas = Renderer.camera_manoeuvring(z)
+        Camera.camera_to_view3d()  # important to call this *after* manoeuvering the camera and *before* slicing the LOD
+        cam = bpy.context.scene.objects[CAM_NAME]
+        lod = bpy.context.scene.objects[LOD_NAME]
 
+        # Next, slice the LOD and export it.
+        tile_indices = list(canvas.tiles())
+        canvas_tiles = {pos: canvas.create_tile_object(cam, row=pos[0], col=pos[1]) for pos in tile_indices}
+        lod_slices = {pos: LOD.slice(lod, cam, canvas_tiles[pos]) for pos in tile_indices}
+        tile_indices_nonempty = [pos for pos in tile_indices if len(lod_slices[pos].data.polygons) > 0]
+        assert tile_indices_nonempty, "LOD must not be completely empty, but should contain at least 1 polygon"
+        filename = tgi_formatter(gid, z.value, v.value, 0)
+        path = get_relative_path_for(f"{filename}.obj")
+        LOD.export([lod_slices[pos] for pos in tile_indices_nonempty], path, v)
+        # after export, we can discard LOD slices and canvas tiles, as we only need tile indices.
+        for pos in tile_indices:
+            bpy.data.meshes.remove(lod_slices[pos].data)
+            bpy.data.meshes.remove(canvas_tiles[pos].data)
+
+        # Next, render the images and export them.
         if canvas.num_rows > 1 or canvas.num_columns > 1:
             Renderer.enable_nodes()  # the nodes are mainly used as workaround to access the resulting rendered image
 
-            for count, (row, col) in enumerate(canvas.tiles()):
+            for count, (row, col) in enumerate(tile_indices_nonempty):
                 left, right, top, bottom = canvas.tile_border_fractional_LRTB(row, col)
 
                 bpy.context.scene.render.use_border = True
