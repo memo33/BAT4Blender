@@ -159,7 +159,7 @@ class Renderer:
         # create output node
         v = tree.nodes.new('CompositorNodeViewer')
         v.location = 750, 210
-        v.use_alpha = False
+        v.use_alpha = True
 
         # Links
         links.new(rl.outputs[0], v.inputs[0])  # link Image output to Viewer input
@@ -170,6 +170,7 @@ class Renderer:
         from .Camera import Camera
         bpy.context.scene.render.image_settings.file_format = 'PNG'
         bpy.context.scene.render.image_settings.color_mode = 'RGBA'
+        bpy.context.scene.render.film_transparent = True
         # First, position the camera for the current zoom and rotation. TODO Why does this not use v?
         canvas = Renderer.camera_manoeuvring(z)
         Camera.camera_to_view3d()  # important to call this *after* manoeuvering the camera and *before* slicing the LOD
@@ -227,6 +228,7 @@ class Renderer:
         bpy.context.scene.render.border_max_x = 1.0
         bpy.context.scene.render.border_min_y = 0.0
         bpy.context.scene.render.border_max_y = 1.0
+        bpy.context.scene.render.film_transparent = True
         bpy.ops.render.render('INVOKE_DEFAULT', write_still=False)
 
     @staticmethod
