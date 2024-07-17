@@ -132,6 +132,8 @@ class LOD:
         r"""Create a LOD slice object cut out by the given canvas tile.
         """
         lod_visible = LOD.copy_visible_faces(lod, cam)  # as the knife_project modifies this object, we create it anew for each tile
+        lod_visible.parent = canvas_tile  # for local coordinates (to find vertices inside tile boundary)
+        lod_visible.matrix_parent_inverse = canvas_tile.matrix_world.inverted()  # TODO or .matrix_local?
 
         if bpy.context.mode != 'OBJECT':
             bpy.ops.object.mode_set(mode='OBJECT')
@@ -146,10 +148,24 @@ class LOD:
         with bpy.context.temp_override(**ctx_override):
             bpy.ops.mesh.knife_project()
 
-        # create sliced LOD from selected faces
+        # compute tile boundary
+        assert canvas_tile.parent is not None, "Parent of canvas tile should be the corresponding camera for local coordinates to work."
+        tile_coords = [canvas_tile.matrix_local @ v.co for v in canvas_tile.data.vertices]
+        tile_x_min = min(c[0] for c in tile_coords)
+        tile_x_max = max(c[0] for c in tile_coords)
+        tile_y_min = min(c[1] for c in tile_coords)
+        tile_y_max = max(c[1] for c in tile_coords)
+
+        # Create sliced LOD from faces selected by knife project operator
+        # and, additionally, faces whose vertices are completely within the tile boundaries.
+        # (The latter is important for faces that do not intersect with the
+        # tile boundary, so would not be selected by the knife project operator.)
         bm = bmesh.from_edit_mesh(bpy.context.edit_object.data)
         name = 'b4b_lod_slice'
-        slice_mesh = LOD._copy_bmesh_with_face_filter(bm, name, lambda f: f.select)
+        bm_verts_inside = {v.index for v in bm.verts
+                           if tile_x_min <= (c := lod_visible.matrix_local @ v.co)[0] and c[0] <= tile_x_max
+                           and tile_y_min <= c[1] and c[1] <= tile_y_max}
+        slice_mesh = LOD._copy_bmesh_with_face_filter(bm, name, lambda f: f.select or all(v.index in bm_verts_inside for v in f.verts))
 
         slice_obj = bpy.data.objects.new(name, slice_mesh)
         slice_obj.location = lod_visible.location
