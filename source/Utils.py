@@ -6,9 +6,8 @@ tid = "7ab50e44"
 
 def tgi_formatter(gid, z, v, no):
     t = 0  # default to day render
-    iid = "0003{}{}{}{}".format(t, z, v, no)
-
-    return "{}_{}_{}".format(tid, gid, iid)
+    iid = 0x30000 + t * 0x10000 + z * 0x100 + v * 0x10 + no
+    return f"{tid}_{gid}_{iid:08x}"
 
 
 def get_relative_path_for(fn):
