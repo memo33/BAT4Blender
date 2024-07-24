@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from dataclasses import dataclass
 from math import tan, atan, ceil
 from mathutils import Vector
 from .Config import *
@@ -91,52 +92,56 @@ class Canvas:
         return {}
 
     @staticmethod
-    def _plane_from_vertices(name: str, bottom_left: Vector, bottom_right: Vector, top_left: Vector, top_right: Vector):
-        mesh = bpy.data.meshes.new(name)
-        obj = bpy.data.objects.new(name, mesh)
-        b4b_collection().objects.link(obj)
-        faces = [(0, 1, 3, 2)]
-        mesh.from_pydata([bottom_left, bottom_right, top_left, top_right], [], faces)
-        mesh.update(calc_edges=True)
-        return obj
-
-    @staticmethod
     def _mean(vertices: list) -> Vector:
         assert vertices, "vertices list must not be empty"
         return sum(vertices[1:], vertices[0]) / len(vertices)
 
-    def create_tile_object(self, cam, row: int, col: int):
-        r"""Create a plane object representing the canvas tile physically."""
-        l, r, t, b = self.tile_border_fractional_LRTB(row=row, col=col)
+    def grid(self, cam) -> CanvasGrid:
+        frame = CanvasFrame(cam)
+        column_coords = [frame.weighted(self.tile_border_fractional_LRTB(row=0, col=col)[0], 0) for col in range(self.num_columns)] + [frame.top_r]
+        row_coords = [frame.weighted(0, self.tile_border_fractional_LRTB(row=row, col=0)[2]) for row in range(self.num_rows)] + [frame.bot_l]
+        return CanvasGrid(frame=frame,
+                          column_coords=column_coords,
+                          row_coords=row_coords)
+
+
+class CanvasFrame:
+    bot_l: Vector
+    bot_r: Vector
+    top_l: Vector
+    top_r: Vector
+
+    def __init__(self, cam):
         cam_verts = cam.data.view_frame(scene=bpy.context.scene)  # with scene keyword, this shrinks shorter dimension to fit resolution
         cam_center = Canvas._mean(cam_verts)
         assert len(cam_verts) == 4
-        bot_l, = [v for v in cam_verts if v[0] < cam_center[0] and v[1] < cam_center[1]]
-        bot_r, = [v for v in cam_verts if v[0] > cam_center[0] and v[1] < cam_center[1]]
-        top_l, = [v for v in cam_verts if v[0] < cam_center[0] and v[1] > cam_center[1]]
-        top_r, = [v for v in cam_verts if v[0] > cam_center[0] and v[1] > cam_center[1]]
+        self.bot_l, = [v for v in cam_verts if v[0] < cam_center[0] and v[1] < cam_center[1]]
+        self.bot_r, = [v for v in cam_verts if v[0] > cam_center[0] and v[1] < cam_center[1]]
+        self.top_l, = [v for v in cam_verts if v[0] < cam_center[0] and v[1] > cam_center[1]]
+        self.top_r, = [v for v in cam_verts if v[0] > cam_center[0] and v[1] > cam_center[1]]
 
-        def weighted(s0, s1) -> Vector:
-            return (1-s0) * ((1-s1) * top_l + s1 * bot_l) + s0 * ((1-s1) * top_r + s1 * bot_r)
-            # return top_l + s0 * (top_r - top_l) + s1 * (bot_l - top_l)
+    def weighted(self, sx, sy) -> Vector:
+        return ((self.top_l * (1-sy) + self.bot_l * sy) * (1-sx) +
+                (self.top_r * (1-sy) + self.bot_r * sy) * sx)
 
-        obj = Canvas._plane_from_vertices(
-                'b4b_canvas_tile',
-                bottom_left=weighted(l, b),
-                bottom_right=weighted(r, b),
-                top_left=weighted(l, t),
-                top_right=weighted(r, t))
-        obj.location = cam.location
-        obj.scale = cam.scale
-        obj.rotation_euler = cam.rotation_euler
-        obj.hide_render = True
-        obj.display_type = 'WIRE'
+    def tile_border_absolute_LRTB(self, canvas: Canvas, row: int, col: int) -> (float, float, float, float):
+        l, r, t, b = canvas.tile_border_fractional_LRTB(row=row, col=col)
+        tile_top_l = self.weighted(l, t)
+        tile_bot_r = self.weighted(r, b)
+        return tile_top_l[0], tile_bot_r[0], tile_top_l[1], tile_bot_r[1]
 
-        # TODO if cam is new, maybe we need to call bpy.context.view_layer.update() for up-to-date matrices
-        obj.parent = cam
-        obj.matrix_parent_inverse = cam.matrix_world.inverted()  # TODO or .matrix_local?
 
-        return obj
+@dataclass
+class CanvasGrid:
+    frame: CanvasFrame
+    column_coords: list[Vector]  # arbitrary points on the grid lines (num_columns + 1), in cam coordinates
+    row_coords: list[Vector]  # arbitrary points on the grid lines (num_rows + 1), in cam coordinates
+
+    def is_point_in_tile(self, v: Vector, row: int, col: int) -> bool:
+        # TODO convert v to cam coordinates?
+        x0, x1 = [c[0] for c in self.column_coords[col:col+2]]
+        y0, y1 = [c[1] for c in self.row_coords[row:row+2]]
+        return x0 <= v[0] and v[0] <= x1 and y0 >= v[1] and v[1] >= y1
 
 
 class Renderer:
@@ -173,23 +178,20 @@ class Renderer:
         bpy.context.scene.render.film_transparent = True
         # First, position the camera for the current zoom and rotation. TODO Why does this not use v?
         canvas = Renderer.camera_manoeuvring(z)
-        Camera.camera_to_view3d()  # important to call this *after* manoeuvering the camera and *before* slicing the LOD
         cam = bpy.context.scene.objects[CAM_NAME]
         lod = bpy.context.scene.objects[LOD_NAME]
 
         # Next, slice the LOD and export it.
         tile_indices = list(canvas.tiles())
-        canvas_tiles = {pos: canvas.create_tile_object(cam, row=pos[0], col=pos[1]) for pos in tile_indices}
-        lod_slices = {pos: LOD.slice(lod, cam, canvas_tiles[pos]) for pos in tile_indices}
+        lod_slices = LOD.sliced(lod, cam, canvas)
         tile_indices_nonempty = [pos for pos in tile_indices if len(lod_slices[pos].data.polygons) > 0]
         assert tile_indices_nonempty, "LOD must not be completely empty, but should contain at least 1 polygon"
         filename = tgi_formatter(gid, z.value, v.value, 0)
         path = get_relative_path_for(f"{filename}.obj")
         LOD.export([lod_slices[pos] for pos in tile_indices_nonempty], path, v)
-        # after export, we can discard LOD slices and canvas tiles, as we only need tile indices.
-        for pos in tile_indices:
-            bpy.data.meshes.remove(lod_slices[pos].data)
-            bpy.data.meshes.remove(canvas_tiles[pos].data)
+        # after export, we can discard LOD slices, as we only need tile indices.
+        for lod_slice in lod_slices.values():
+            bpy.data.meshes.remove(lod_slice.data)
 
         # Next, render the images and export them.
         if canvas.num_rows > 1 or canvas.num_columns > 1:

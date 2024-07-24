@@ -132,82 +132,73 @@ class LOD:
         b4b_collection().objects.link(obj)
         return obj
 
-    def slice(lod, cam, canvas_tile):
-        r"""Create a LOD slice object cut out by the given canvas tile.
-        This requires a View3D editor that has already been set to the camera view.
+    def sliced(lod, cam, canvas):
+        r"""Slice up the visible part of the LOD along the canvas tile grid and
+        return a dictionary of the tile positions and the sliced LOD objects.
         """
         from .Renderer import Canvas
-        bpy.context.view_layer.update()  # this is important to get up-to-date local coordinates, as tiles were just created
+        canvas_grid = canvas.grid(cam)
+
+        bpy.context.view_layer.update()  # this is important to get up-to-date local coordinates, as tiles were just created/cam was just positioned
         lod_visible = LOD.copy_visible_faces(lod, cam)  # as the knife_project modifies this object, we create it anew for each tile
-        lod_visible.parent = canvas_tile  # for local coordinates (to find vertices inside tile boundary)
-        lod_visible.matrix_parent_inverse = canvas_tile.matrix_world.inverted()  # TODO or .matrix_local?
+        lod_visible.parent = cam  # for local coordinates (to find vertices inside tile boundary)
+        lod_visible.matrix_parent_inverse = cam.matrix_world.inverted()  # TODO or .matrix_local?
 
         if bpy.context.mode != 'OBJECT':
             bpy.ops.object.mode_set(mode='OBJECT')
         bpy.ops.object.select_all(action='DESELECT')
         bpy.context.view_layer.objects.active = lod_visible
 
-        # apply knife project operator
+        # apply bisect operator along grid (multiple times)
         bpy.ops.object.mode_set(mode='EDIT')
-        canvas_tile.select_set(True)
-        ctx_override = Canvas.find_view3d()
-        assert 'area' in ctx_override
-        with bpy.context.temp_override(**ctx_override):
-            bpy.ops.mesh.knife_project()
-
-        # compute tile boundary
-        assert canvas_tile.parent is not None, "Parent of canvas tile should be the corresponding camera for local coordinates to work."
-        tile_coords = [canvas_tile.matrix_local @ v.co for v in canvas_tile.data.vertices]
-        tile_x_min = min(c[0] for c in tile_coords)
-        tile_x_max = max(c[0] for c in tile_coords)
-        tile_y_min = min(c[1] for c in tile_coords)
-        tile_y_max = max(c[1] for c in tile_coords)
-
-        # Create sliced LOD from faces selected by knife project operator
-        # and, additionally, faces whose vertices are completely within the tile boundaries.
-        # (The latter is important for faces that do not intersect with the
-        # tile boundary, so would not be selected by the knife project operator.)
-        bm = bmesh.from_edit_mesh(bpy.context.edit_object.data)
-        name = 'b4b_lod_slice'
-        bm_verts_inside = {v.index for v in bm.verts
-                           if tile_x_min <= (c := lod_visible.matrix_local @ v.co)[0] and c[0] <= tile_x_max
-                           and tile_y_min <= c[1] and c[1] <= tile_y_max}
-        slice_mesh = LOD._copy_bmesh_with_face_filter(bm, name, lambda f: f.select or all(v.index in bm_verts_inside for v in f.verts))
-
-        slice_obj = bpy.data.objects.new(name, slice_mesh)
-        slice_obj.location = lod_visible.location
-        slice_obj.scale = lod_visible.scale
-        slice_obj.rotation_euler = lod_visible.rotation_euler
-        slice_obj.hide_render = True
-
-        # TODO if canvas_tile is new, maybe we need to call bpy.context.view_layer.update() for up-to-date matrices
-        slice_obj.parent = canvas_tile
-        slice_obj.matrix_parent_inverse = canvas_tile.matrix_world.inverted()  # TODO or .matrix_local?
-
-        b4b_collection().objects.link(slice_obj)
-
+        for no, coords in [(Vector([1, 0, 0]), canvas_grid.column_coords),
+                           (Vector([0, 1, 0]), canvas_grid.row_coords)]:
+            for co in coords[1:-1]:
+                bpy.ops.mesh.select_all(action='SELECT')
+                plane_co = cam.matrix_world @ co - cam.location
+                plane_no = cam.matrix_world @ no - cam.location
+                bpy.ops.mesh.bisect(plane_co=plane_co, plane_no=plane_no)
+        bpy.ops.mesh.select_all(action='DESELECT')
         bpy.ops.object.mode_set(mode='OBJECT')
-        # set uv coordinates
-        uv_map = LOD._compute_uv_of_lod_slice(slice_obj)
-        uv_layer = slice_obj.data.uv_layers.new(name='UVmap')
-        for polygon in slice_obj.data.polygons:
-            for loopindex in polygon.loop_indices:  # loopindex corresponds to a "face vertex"
-                meshloop = slice_obj.data.loops[loopindex]
-                meshuvloop = uv_layer.data[loopindex]
-                meshuvloop.uv.xy = uv_map[meshloop.vertex_index]
 
+        bm = bmesh.new()
+        bm.from_mesh(lod_visible.data)
+        def create_slice_obj(row: int, col: int):
+            name = 'b4b_lod_slice'
+            # As some or all vertices of a face could lie on the grid, to avoid
+            # numerical issues, we check whether the center of the polygon is
+            # inside the canvas tile.
+            slice_mesh = LOD._copy_bmesh_with_face_filter(
+                    bm, name,
+                    lambda f: canvas_grid.is_point_in_tile(Canvas._mean([lod_visible.matrix_local @ v.co for v in f.verts]), row=row, col=col))
+
+            slice_obj = bpy.data.objects.new(name, slice_mesh)
+            slice_obj.location = lod_visible.location
+            slice_obj.scale = lod_visible.scale
+            slice_obj.rotation_euler = lod_visible.rotation_euler
+            slice_obj.hide_render = True
+            slice_obj.parent = cam
+            slice_obj.matrix_parent_inverse = cam.matrix_world.inverted()  # TODO or .matrix_local?
+            b4b_collection().objects.link(slice_obj)
+            bpy.context.view_layer.update()  # important so that computation of uv-map sees current coordinates
+
+            # set uv coordinates
+            uv_map = LOD._compute_uv_of_lod_slice(slice_obj, *canvas_grid.frame.tile_border_absolute_LRTB(canvas, row=row, col=col))
+            uv_layer = slice_obj.data.uv_layers.new(name='UVmap')
+            for polygon in slice_obj.data.polygons:
+                for loopindex in polygon.loop_indices:  # loopindex corresponds to a "face vertex"
+                    meshloop = slice_obj.data.loops[loopindex]
+                    meshuvloop = uv_layer.data[loopindex]
+                    meshuvloop.uv.xy = uv_map[meshloop.vertex_index]
+
+            return slice_obj
+
+        slice_objs = {pos: create_slice_obj(*pos) for pos in canvas.tiles()}
+        bm.free()
         bpy.data.meshes.remove(lod_visible.data, do_unlink=True)
-        return slice_obj
+        return slice_objs
 
-    def _compute_uv_of_lod_slice(lod_slice):
-        assert lod_slice.parent is not None, "Parent of LOD slice should be the corresponding canvas_tile."
-        canvas_tile = lod_slice.parent
-
-        tile_coords = [canvas_tile.matrix_local @ v.co for v in canvas_tile.data.vertices]
-        x_min = min(c[0] for c in tile_coords)
-        x_max = max(c[0] for c in tile_coords)
-        y_min = min(c[1] for c in tile_coords)
-        y_max = max(c[1] for c in tile_coords)
+    def _compute_uv_of_lod_slice(lod_slice, x_min: float, x_max: float, y_max: float, y_min: float):
 
         def vert2uv(vert):
             # the local coordinates are relative to the parent (canvas_tile),
