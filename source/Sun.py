@@ -1,6 +1,6 @@
 import bpy
 from math import radians
-from .Config import *
+from .Config import SUN_NAME
 from .Enums import Rotation
 from .Utils import b4b_collection
 
@@ -32,7 +32,6 @@ class Sun:
         sun_ob.rotation_euler = rotation
         b4b_collection().objects.link(sun_ob)
         bpy.context.view_layer.update()
-
 
     @staticmethod
     def update(rotation):

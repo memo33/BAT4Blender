@@ -3,8 +3,9 @@ import bmesh
 from mathutils import Vector, Matrix
 from typing import List, Any
 from .Config import LOD_NAME
-from .Utils import get_relative_path_for, b4b_collection, translate, clip
+from .Utils import b4b_collection, translate, clip
 from .Enums import Rotation
+
 
 class LOD:
     @staticmethod
@@ -89,11 +90,11 @@ class LOD:
                 filepath=filepath,  # "{}.obj".format(get_relative_path_for(LOD_NAME)),
                 check_existing=False,
                 axis_up='Y',
-                axis_forward=
+                axis_forward=(
                     '-Z' if rotation == Rotation.SOUTH else
                     'X' if rotation == Rotation.EAST else
                     'Z' if rotation == Rotation.NORTH else
-                    '-X',  # WEST
+                    '-X'),  # WEST
                 use_selection=True,
                 use_materials=False,
                 use_triangles=True,
@@ -163,6 +164,7 @@ class LOD:
 
         bm = bmesh.new()
         bm.from_mesh(lod_visible.data)
+
         def create_slice_obj(row: int, col: int):
             name = 'b4b_lod_slice'
             # As some or all vertices of a face could lie on the grid, to avoid

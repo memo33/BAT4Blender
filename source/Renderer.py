@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import bpy
 from math import tan, atan
-from .Config import *
-from .Utils import *
+from .Config import LOD_NAME, CAM_NAME
+from .Utils import tgi_formatter, get_relative_path_for, translate
 from .Enums import Zoom
 from .Canvas import Canvas
 
@@ -41,7 +42,6 @@ class Renderer:
     @staticmethod
     def generate_output(v, z, gid):
         from .LOD import LOD
-        from .Camera import Camera
         bpy.context.scene.render.image_settings.file_format = 'PNG'
         bpy.context.scene.render.image_settings.color_mode = 'RGBA'
         bpy.context.scene.render.film_transparent = True

@@ -1,6 +1,5 @@
-from .Enums import *
-from .Rig import *
-from .LOD import *
+import bpy
+from .Enums import Operators, Rotation, Zoom
 
 
 class MainPanel(bpy.types.Panel):

@@ -1,7 +1,11 @@
 import bpy
-from .Enums import *
-from .Rig import *
-from bpy.props import *
+from .Enums import Operators, Rotation, Zoom
+from .Rig import Rig
+from .LOD import LOD
+from .Sun import Sun
+from .Camera import Camera
+from .Renderer import Renderer
+from bpy.props import StringProperty
 
 
 # The OK button in the error dialog
@@ -46,10 +50,11 @@ class B4BRender(bpy.types.Operator):
         group = context.scene.group_id if context.scene.group_id != "default" else None
         steps = [(z, v) for z in Zoom for v in Rotation]
         for i, (z, v) in enumerate(steps):
-            print(f"Step ({i+1}/{len(steps)}): zoom {z.value}, rotation {v.name}")
+            print(f"Step ({i+1}/{len(steps)}): zoom {z.value+1}, rotation {v.name}")
             Rig.setup(v, z)
             Renderer.generate_output(v, z, group)
 
+        print("FINISHED")
         return {"FINISHED"}
 
 

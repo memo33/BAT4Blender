@@ -1,6 +1,6 @@
 import bpy
-from .GUI import *
-from .GUI_ops import *
+from .GUI import InterfaceVars, MainPanel
+from . import GUI_ops
 
 bl_info = {
     "name": "BAT4Blender",
@@ -19,21 +19,20 @@ def register():
     bpy.types.Scene.group_id = bpy.props.StringProperty(
             name="Group Id",
             description="the GID as provided by gmax",
-            default="default"
-        )
+            default="default")
 
     bpy.utils.register_class(MainPanel)
-    bpy.utils.register_class(B4BPreview)
-    bpy.utils.register_class(B4BRender)
-    bpy.utils.register_class(B4BLODExport)
-    bpy.utils.register_class(B4BLODAdd)
-    bpy.utils.register_class(B4BLODDelete)
-    bpy.utils.register_class(B4BSunAdd)
-    bpy.utils.register_class(B4BSunDelete)
-    bpy.utils.register_class(B4BCamAdd)
-    bpy.utils.register_class(B4BCamDelete)
-    bpy.utils.register_class(OkOperator)
-    bpy.utils.register_class(MessageOperator)
+    bpy.utils.register_class(GUI_ops.B4BPreview)
+    bpy.utils.register_class(GUI_ops.B4BRender)
+    bpy.utils.register_class(GUI_ops.B4BLODExport)
+    bpy.utils.register_class(GUI_ops.B4BLODAdd)
+    bpy.utils.register_class(GUI_ops.B4BLODDelete)
+    bpy.utils.register_class(GUI_ops.B4BSunAdd)
+    bpy.utils.register_class(GUI_ops.B4BSunDelete)
+    bpy.utils.register_class(GUI_ops.B4BCamAdd)
+    bpy.utils.register_class(GUI_ops.B4BCamDelete)
+    bpy.utils.register_class(GUI_ops.OkOperator)
+    bpy.utils.register_class(GUI_ops.MessageOperator)
 
 
 def unregister():
@@ -42,14 +41,14 @@ def unregister():
     del bpy.types.Scene.group_id
     bpy.utils.unregister_class(InterfaceVars)
     bpy.utils.unregister_class(MainPanel)
-    bpy.utils.unregister_class(B4BPreview)
-    bpy.utils.unregister_class(B4BRender)
-    bpy.utils.unregister_class(B4BLODExport)
-    bpy.utils.unregister_class(B4BLODAdd)
-    bpy.utils.unregister_class(B4BLODDelete)
-    bpy.utils.unregister_class(B4BSunAdd)
-    bpy.utils.unregister_class(B4BSunDelete)
-    bpy.utils.unregister_class(B4BCamAdd)
-    bpy.utils.unregister_class(B4BCamDelete)
-    bpy.utils.unregister_class(OkOperator)
-    bpy.utils.unregister_class(MessageOperator)
+    bpy.utils.unregister_class(GUI_ops.B4BPreview)
+    bpy.utils.unregister_class(GUI_ops.B4BRender)
+    bpy.utils.unregister_class(GUI_ops.B4BLODExport)
+    bpy.utils.unregister_class(GUI_ops.B4BLODAdd)
+    bpy.utils.unregister_class(GUI_ops.B4BLODDelete)
+    bpy.utils.unregister_class(GUI_ops.B4BSunAdd)
+    bpy.utils.unregister_class(GUI_ops.B4BSunDelete)
+    bpy.utils.unregister_class(GUI_ops.B4BCamAdd)
+    bpy.utils.unregister_class(GUI_ops.B4BCamDelete)
+    bpy.utils.unregister_class(GUI_ops.OkOperator)
+    bpy.utils.unregister_class(GUI_ops.MessageOperator)

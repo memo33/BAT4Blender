@@ -58,8 +58,8 @@ class Canvas:
     def tile_dimensions_px(self, row: int, col: int) -> (int, int):
         assert 0 <= row and row < self.num_rows
         assert 0 <= col and col < self.num_columns
-        w = self.width_px - col * _MAX_TILE_SIZE_PX if col == self.num_columns - 1  else _MAX_TILE_SIZE_PX
-        h = self.height_px - row * _MAX_TILE_SIZE_PX if row == self.num_rows - 1  else _MAX_TILE_SIZE_PX
+        w = self.width_px - col * _MAX_TILE_SIZE_PX if col == self.num_columns - 1 else _MAX_TILE_SIZE_PX
+        h = self.height_px - row * _MAX_TILE_SIZE_PX if row == self.num_rows - 1 else _MAX_TILE_SIZE_PX
         return w, h
 
     def tiles(self) -> Iterator[(int, int)]:
@@ -69,9 +69,9 @@ class Canvas:
 
     def tile_border_fractional_LRTB(self, row: int, col: int) -> (float, float, float, float):
         l = col * _MAX_TILE_SIZE_PX / self.width_px
-        r = min((col+1) * _MAX_TILE_SIZE_PX, self.width_px) / self.width_px
+        r = min((col + 1) * _MAX_TILE_SIZE_PX, self.width_px) / self.width_px
         t = row * _MAX_TILE_SIZE_PX / self.height_px
-        b = min((row+1) * _MAX_TILE_SIZE_PX, self.height_px) / self.height_px
+        b = min((row + 1) * _MAX_TILE_SIZE_PX, self.height_px) / self.height_px
         return l, r, t, b
 
     @staticmethod
