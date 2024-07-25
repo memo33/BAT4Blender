@@ -66,7 +66,7 @@ class Camera:
 
     @staticmethod
     def camera_to_view3d():
-        from .Renderer import Canvas
+        from .Canvas import Canvas
         override = Canvas.find_view3d()
         assert 'area' in override
         override['active_object'] = bpy.data.objects[CAM_NAME]

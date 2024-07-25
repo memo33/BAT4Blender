@@ -136,7 +136,7 @@ class LOD:
         r"""Slice up the visible part of the LOD along the canvas tile grid and
         return a dictionary of the tile positions and the sliced LOD objects.
         """
-        from .Renderer import Canvas
+        from .Canvas import Canvas
         canvas_grid = canvas.grid(cam)
 
         bpy.context.view_layer.update()  # this is important to get up-to-date local coordinates, as tiles were just created/cam was just positioned
