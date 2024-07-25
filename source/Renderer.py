@@ -146,28 +146,28 @@ class CanvasGrid:
 
 class Renderer:
 
-    @staticmethod
-    def enable_nodes():
-        # switch on nodes
-        bpy.context.scene.use_nodes = True
-        tree = bpy.context.scene.node_tree
-        links = tree.links
+    # @staticmethod
+    # def enable_nodes():
+    #     # switch on nodes
+    #     bpy.context.scene.use_nodes = True
+    #     tree = bpy.context.scene.node_tree
+    #     links = tree.links
 
-        # clear default nodes
-        for n in tree.nodes:
-            tree.nodes.remove(n)
+    #     # clear default nodes
+    #     for n in tree.nodes:
+    #         tree.nodes.remove(n)
 
-        # create input render layer node
-        rl = tree.nodes.new('CompositorNodeRLayers')
-        rl.location = 185, 285
+    #     # create input render layer node
+    #     rl = tree.nodes.new('CompositorNodeRLayers')
+    #     rl.location = 185, 285
 
-        # create output node
-        v = tree.nodes.new('CompositorNodeViewer')
-        v.location = 750, 210
-        v.use_alpha = True
+    #     # create output node
+    #     v = tree.nodes.new('CompositorNodeViewer')
+    #     v.location = 750, 210
+    #     v.use_alpha = True
 
-        # Links
-        links.new(rl.outputs[0], v.inputs[0])  # link Image output to Viewer input
+    #     # Links
+    #     links.new(rl.outputs[0], v.inputs[0])  # link Image output to Viewer input
 
     @staticmethod
     def generate_output(v, z, gid):
@@ -194,32 +194,28 @@ class Renderer:
             bpy.data.meshes.remove(lod_slice.data)
 
         # Next, render the images and export them.
-        if canvas.num_rows > 1 or canvas.num_columns > 1:
-            Renderer.enable_nodes()  # the nodes are mainly used as workaround to access the resulting rendered image
+        # Renderer.enable_nodes()  # the nodes are mainly used as workaround to access the resulting rendered image (disabled to avoid conflicts)
 
-            for count, (row, col) in enumerate(tile_indices_nonempty):
-                left, right, top, bottom = canvas.tile_border_fractional_LRTB(row, col)
+        for count, (row, col) in enumerate(tile_indices_nonempty):
+            left, right, top, bottom = canvas.tile_border_fractional_LRTB(row, col)
 
-                bpy.context.scene.render.use_border = True
-                bpy.context.scene.render.use_crop_to_border = True
-                bpy.context.scene.render.border_min_x = left
-                bpy.context.scene.render.border_max_x = right
-                bpy.context.scene.render.border_min_y = 1 - bottom
-                bpy.context.scene.render.border_max_y = 1 - top
+            bpy.context.scene.render.use_border = True
+            bpy.context.scene.render.use_crop_to_border = True
+            bpy.context.scene.render.border_min_x = left
+            bpy.context.scene.render.border_max_x = right
+            bpy.context.scene.render.border_min_y = 1 - bottom
+            bpy.context.scene.render.border_max_y = 1 - top
 
-                bpy.ops.render.render()
-                filename = tgi_formatter(gid, z.value, v.value, count)
-                path = get_relative_path_for(f"{filename}.png")
-                img = bpy.data.images['Viewer Node']
-                img.save_render(path)
-                assert tuple(img.size) == canvas.tile_dimensions_px(row, col), \
-                        f"Rendered image has unexpected size: {tuple(img.size)} instead of {canvas.tile_dimensions_px(row, col)}"
-                print(f"Saved image {path}")
-
-        else:
-            filename = tgi_formatter(gid, z.value, v.value, 0)
-            bpy.context.scene.render.filepath = get_relative_path_for(f"{filename}.png")
-            print("rendering single image")
+            bpy.ops.render.render()
+            filename = tgi_formatter(gid, z.value, v.value, count)
+            path = get_relative_path_for(f"{filename}.png")
+            w, h = canvas.tile_dimensions_px(row, col)
+            # img = bpy.data.images['Viewer Node']
+            # img.save_render(path)
+            # assert tuple(img.size) == (w, h), \
+            #         f"Rendered image has unexpected size: {tuple(img.size)} instead of {w}×{h}"
+            bpy.context.scene.render.filepath = path
+            print(f"Rendering image ({w}×{h})")
             bpy.ops.render.render(write_still=True)
 
     @staticmethod
