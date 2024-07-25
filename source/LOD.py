@@ -80,7 +80,7 @@ class LOD:
         bpy.context.view_layer.update()
 
     @staticmethod
-    def export(lod_objects, filepath: str, rotation: Rotation):  # TODO default arguments for GUI export button?
+    def export(lod_objects, filepath: str, rotation: Rotation):
         r"""Export a list of sliced LOD objects as a single .obj file"""
         # if LOD_NAME in bpy.data.objects:
         with bpy.context.temp_override(selected_objects=lod_objects):
