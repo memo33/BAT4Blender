@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import bpy
 from math import tan, atan
+from mathutils import Vector
 from .Config import LOD_NAME, CAM_NAME
 from .Utils import tgi_formatter, get_relative_path_for, translate
 from .Enums import Zoom
 from .Canvas import Canvas
 
-# render dimensions need to take view into account
 # sd default
-render_dimension = [16, 32, 64, 128, 256]
+zoom_sizes = [8, 16, 32, 73, 146]  # from SFCameraRigHD.ms (horizontal extent of 16×16 cell in pixels)
 
 _SLOP = 3
 
@@ -99,32 +99,27 @@ class Renderer:
         bpy.ops.render.render('INVOKE_DEFAULT', write_still=False)
 
     @staticmethod
-    def check_scale():
-        lod = bpy.context.scene.objects[LOD_NAME]
-        cam = bpy.context.scene.objects[CAM_NAME]
-        depsgraph = bpy.context.evaluated_depsgraph_get()
-        os_lod = Renderer.get_orthographic_scale(depsgraph, cam, lod)
-        os_gmax = Renderer.get_orthographic_scale_gmax(cam.location[2])
-        default_os = Renderer.get_orthographic_scale_gmax(134.35028)  # default location for zoom 5. .
-        final_os = default_os + (default_os - os_gmax)
-        s_f = Renderer.get_scale_factor(os_lod, final_os)
-        return s_f >= 2
-
-    @staticmethod
     def camera_manoeuvring(zoom: Zoom) -> Canvas:
+        r"""Adjust the offset, orthographic scale and resolution of the current
+        camera so that the LOD fits into view, including a margin, and such
+        that the orthographic scale results in a pixel-perfect display of the
+        rendered image at the given zoom level.
+        """
         lod = bpy.context.scene.objects[LOD_NAME]
         cam = bpy.context.scene.objects[CAM_NAME]
+        bpy.context.scene.render.resolution_x = 256  # temporary for computation of os_reference
+        bpy.context.scene.render.resolution_y = 256
         depsgraph = bpy.context.evaluated_depsgraph_get()
         bpy.context.scene.camera = cam  # apparently invoke default also checks if the scene has a camera..?
 
+        # We use a 16×16 cell centered at origin as reference.
+        # Its rendered (horizontal) dimension is zoom_sizes[zoom.value] in pixels.
+        # Hence
+        #   os_reference : zoom_sizes[zoom.value] == os_lod : dim_lod
+        # where dim_lod is the actual maximum dimension of the LOD in pixels.
+        os_reference = Renderer.get_orthographic_scale(depsgraph, cam, lod=None)
         os_lod = Renderer.get_orthographic_scale(depsgraph, cam, lod)
-        os_gmax = Renderer.get_orthographic_scale_gmax(cam.location[2])
-        default_os = Renderer.get_orthographic_scale_gmax(134.35028)  # default location for zoom 5. .
-        final_os = default_os + (default_os - os_gmax)
-
-        # Note that final_os is independent of the LOD and satisfies the following law:
-        # final_os : render_dimension[zoom.value] == os_lod : "actual pixel dimension of LOD"
-        dim_lod = render_dimension[zoom.value] * os_lod / final_os
+        dim_lod = zoom_sizes[zoom.value] * os_lod / os_reference
         cam.data.ortho_scale = os_lod
         canvas = Canvas.create(cam, lod, dim_lod=dim_lod, margin=_SLOP)
 
@@ -159,28 +154,13 @@ class Renderer:
         cam.data.shift_y = y_d
 
     @staticmethod
-    def get_scale_factor(os_lod, os_gmax):
-        assert os_gmax > 0 and os_lod > 0
-        factor = 1
-        while os_lod > (os_gmax * factor):
-            factor += 1
-        return factor
-
-    @staticmethod
     def get_orthographic_scale(dg, cam, lod):
-        # This uses the same vertices as `Camera.lod_bounds_LRTB`, as that
-        # determines the dimensions of the camera viewport.
-        coordinates = (lod.matrix_world @ v.co for v in lod.data.vertices)
-        coordinates_flat = [vi for v in coordinates for vi in v]
-        loc, scale = cam.camera_fit_coords(dg, coordinates_flat)
+        if lod is None:
+            # use 16×16 cell centered at origin as reference
+            coordinates = [Vector([-8, -8, 0]), Vector([-8, 8, 0]), Vector([8, -8, 0]), Vector([8, 8, 0])]
+        else:
+            # This uses the same vertices as `Camera.lod_bounds_LRTB`, as that
+            # determines the dimensions of the camera viewport.
+            coordinates = [lod.matrix_world @ v.co for v in lod.data.vertices]
+        loc, scale = cam.camera_fit_coords(dg, [vi for v in coordinates for vi in v])
         return scale
-
-    # NOTE currently passing in camera height depending on zoom
-    # not sure if that's correct, i.e. perhaps the OS for z5 should be used throughout
-    @staticmethod
-    def get_orthographic_scale_gmax(cam_z):
-        unit = 16
-        targetWidth2 = unit + 8  # unit cube with render slop applied as specified in gmax script
-        renderFov = 2 * (atan(targetWidth2 / 190.0))
-        return (cam_z + unit / 2) * tan(
-            renderFov)  # assuming the gmax camera focus in on lod center height which seems correct

@@ -29,7 +29,7 @@ class Canvas:
     @staticmethod
     def create(cam, lod, dim_lod: float, margin: int) -> Canvas:
         r"""Create a Canvas for the current LOD and camera, and include a slop margin.
-        The dim_lod parameter is a factor to map the LOD dimensions from the 0..1 range to the pixel range (i.e. [0,256) for zoom 5).
+        The dim_lod parameter is a factor to map the LOD dimensions from the 0..1 range to the pixel range.
         """
         from .Camera import Camera
         # convert from 3d space to 2d camera space
