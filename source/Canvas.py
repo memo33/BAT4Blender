@@ -67,12 +67,16 @@ class Canvas:
             for col in range(self.num_columns):
                 yield row, col
 
-    def tile_border_fractional_LRTB(self, row: int, col: int) -> (float, float, float, float):
-        l = col * _MAX_TILE_SIZE_PX / self.width_px
-        r = min((col + 1) * _MAX_TILE_SIZE_PX, self.width_px) / self.width_px
-        t = row * _MAX_TILE_SIZE_PX / self.height_px
-        b = min((row + 1) * _MAX_TILE_SIZE_PX, self.height_px) / self.height_px
+    def tile_border_px_LRTB(self, row: int, col: int) -> (int, int, int, int):
+        l = col * _MAX_TILE_SIZE_PX
+        r = min((col + 1) * _MAX_TILE_SIZE_PX, self.width_px)
+        t = row * _MAX_TILE_SIZE_PX
+        b = min((row + 1) * _MAX_TILE_SIZE_PX, self.height_px)
         return l, r, t, b
+
+    def tile_border_fractional_LRTB(self, row: int, col: int) -> (float, float, float, float):
+        l, r, t, b = self.tile_border_px_LRTB(row=row, col=col)
+        return l / self.width_px, r / self.width_px, t / self.height_px, b / self.height_px
 
     @staticmethod
     def find_view3d():

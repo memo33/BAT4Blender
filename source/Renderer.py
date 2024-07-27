@@ -42,6 +42,8 @@ class Renderer:
     @staticmethod
     def generate_output(v, z, gid, model_name: str):
         from .LOD import LOD
+        import numpy as np
+        import os
         bpy.context.scene.render.image_settings.file_format = 'PNG'
         bpy.context.scene.render.image_settings.color_mode = 'RGBA'
         bpy.context.scene.render.film_transparent = True
@@ -61,37 +63,47 @@ class Renderer:
             mat_name = f"{iid:08X}_{model_name}_UserModel_Z{z.value+1}{v.compass_name()}"
             lod_slices[pos].name = lod_slices[pos].data.name = mesh_name  # keep object and data names in sync
             LOD.assign_material_name(lod_slices[pos], mat_name)
-        filename = tgi_formatter(gid, z.value, v.value, 0, is_model=True)
-        path = get_relative_path_for(f"{filename}.obj")
+        path = get_relative_path_for(f"{tgi_formatter(gid, z.value, v.value, 0, is_model=True)}.obj")
         LOD.export([lod_slices[pos] for pos in tile_indices_nonempty], path, v)
         # after export, we can discard LOD slices, as we only need tile indices.
         for lod_slice in lod_slices.values():
             bpy.data.meshes.remove(lod_slice.data)
 
-        # Next, render the images and export them.
-        # Renderer.enable_nodes()  # the nodes are mainly used as workaround to access the resulting rendered image (disabled to avoid conflicts)
+        # Render the full image to a temporary location
+        bpy.context.scene.render.use_border = False  # always render the full frame
+        tmp_path = get_relative_path_for(f"{tgi_formatter(gid, z.value, v.value, 0)}.tmp.png")
+        bpy.context.scene.render.filepath = tmp_path
+        print(f"Rendering image ({canvas.width_px}×{canvas.height_px})")
+        bpy.ops.render.render(write_still=True)
 
-        for count, (row, col) in enumerate(tile_indices_nonempty):
-            left, right, top, bottom = canvas.tile_border_fractional_LRTB(row, col)
+        img = bpy.data.images.load(tmp_path)
+        try:
+            assert tuple(img.size) == (canvas.width_px, canvas.height_px), \
+                    f"Rendered image has unexpected size: {tuple(img.size)} instead of {canvas.width_px}×{canvas.height_px}"
+            arr = np.asarray(img.pixels).reshape((img.size[1], img.size[0], img.channels))
 
-            bpy.context.scene.render.use_border = True
-            bpy.context.scene.render.use_crop_to_border = True
-            bpy.context.scene.render.border_min_x = left
-            bpy.context.scene.render.border_max_x = right
-            bpy.context.scene.render.border_min_y = 1 - bottom
-            bpy.context.scene.render.border_max_y = 1 - top
+            # Next, slice the image into 256×256 tiles.
+            # Slicing *after* rendering (as opposed to rendering individual 256×256 regions) has advantages when a denoising filter is applied.
+            # Otherwise, the denoising filter would lead to visible artifacts at the borders of the 256×256 tiles, preventing a seamless appearance.
+            for count, (row, col) in enumerate(tile_indices_nonempty):
+                left, right, top0, bottom0 = canvas.tile_border_px_LRTB(row, col)
+                top = canvas.height_px - top0
+                bottom = canvas.height_px - bottom0
+                img_tile = bpy.data.images.new("b4b_canvas_tile", width=(right-left), height=(top-bottom), alpha=(img.channels >= 4))
+                img_tile.file_format
+                img_tile.file_format = 'PNG'
+                img_tile.filepath = get_relative_path_for(f"{tgi_formatter(gid, z.value, v.value, count)}.png")
+                img_tile.pixels = arr[bottom:top, left:right, :].ravel()
+                img_tile.save()
+                print(f"Saved: '{img_tile.filepath}'")
+                bpy.data.images.remove(img_tile)
 
-            bpy.ops.render.render()
-            filename = tgi_formatter(gid, z.value, v.value, count)
-            path = get_relative_path_for(f"{filename}.png")
-            w, h = canvas.tile_dimensions_px(row, col)
-            # img = bpy.data.images['Viewer Node']
-            # img.save_render(path)
-            # assert tuple(img.size) == (w, h), \
-            #         f"Rendered image has unexpected size: {tuple(img.size)} instead of {w}×{h}"
-            bpy.context.scene.render.filepath = path
-            print(f"Rendering image ({w}×{h})")
-            bpy.ops.render.render(write_still=True)
+        finally:
+            bpy.data.images.remove(img)
+            try:
+                os.remove(tmp_path)
+            except FileNotFoundError:
+                pass
 
     @staticmethod
     def generate_preview(zoom):
