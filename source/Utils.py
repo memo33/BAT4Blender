@@ -1,18 +1,27 @@
 import bpy
 import os
 
-tid = "7ab50e44"
+tid_fsh = "7ab50e44"
+tid_s3d = "5ad0e817"
 
 
 def instance_id(z, v, count):
     t = 0  # default to day render
-    iid = 0x30000 + t * 0x10000 + z * 0x100 + v * 0x10 + count
+    # This mapping should allow for more than 16 anim groups (for slicing of large BAT models).
+    # Available bits for sliced tile IDs:
+    # digit 8: 4 bits
+    # digit 7: 2 bits (2 bits rotation)
+    # digit 6: 1 bit (3 bits zoom)
+    # digit 5: (1 bit nightlight) 3 bits
+    assert count >= 0 and count < (1 << (4 + 2 + 1 + 3)), "This building is huge! It's just not going to work!"
+    offset = ((count & 0x0380) << (3 + 2)) | ((count & 0x0040) << (3 + 2)) | ((count & 0x0030) << 2) | (count & 0x000f)
+    iid = 0x30000 + t * 0x10000 + z * 0x100 + v * 0x10 + offset
     return iid
 
 
-def tgi_formatter(gid, z, v, count):
+def tgi_formatter(gid, z, v, count, is_model=False):
     iid = instance_id(z, v, count)
-    return f"{tid}_{gid}_{iid:08x}"
+    return f"{tid_s3d if is_model else tid_fsh}_{gid}_{iid:08x}"
 
 
 def get_relative_path_for(fn):

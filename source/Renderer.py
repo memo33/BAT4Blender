@@ -61,7 +61,7 @@ class Renderer:
             mat_name = f"{iid:08X}_{model_name}_UserModel_Z{z.value+1}{v.compass_name()}"
             lod_slices[pos].name = lod_slices[pos].data.name = mesh_name  # keep object and data names in sync
             LOD.assign_material_name(lod_slices[pos], mat_name)
-        filename = tgi_formatter(gid, z.value, v.value, 0)
+        filename = tgi_formatter(gid, z.value, v.value, 0, is_model=True)
         path = get_relative_path_for(f"{filename}.obj")
         LOD.export([lod_slices[pos] for pos in tile_indices_nonempty], path, v)
         # after export, we can discard LOD slices, as we only need tile indices.
