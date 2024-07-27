@@ -81,6 +81,16 @@ class LOD:
         bpy.context.view_layer.update()
 
     @staticmethod
+    def assign_material_name(lod_slice, name: str):
+        mat = bpy.data.materials.get(name)
+        if mat is None:
+            mat = bpy.data.materials.new(name=name)
+        if lod_slice.data.materials:
+            lod_slice.data.materials[0] = mat
+        else:
+            lod_slice.data.materials.append(mat)
+
+    @staticmethod
     def export(lod_objects, filepath: str, rotation: Rotation):
         r"""Export a list of sliced LOD objects as a single .obj file"""
         # if LOD_NAME in bpy.data.objects:
@@ -96,7 +106,7 @@ class LOD:
                     'Z' if rotation == Rotation.NORTH else
                     '-X'),  # WEST
                 use_selection=True,
-                use_materials=False,
+                use_materials=True,  # only needed for preserving the material name
                 use_triangles=True,
             )
         # else:

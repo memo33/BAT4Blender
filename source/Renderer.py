@@ -4,7 +4,7 @@ import bpy
 from math import tan, atan
 from mathutils import Vector
 from .Config import LOD_NAME, CAM_NAME
-from .Utils import tgi_formatter, get_relative_path_for, translate
+from .Utils import tgi_formatter, get_relative_path_for, translate, instance_id
 from .Enums import Zoom
 from .Canvas import Canvas
 
@@ -40,7 +40,7 @@ class Renderer:
     #     links.new(rl.outputs[0], v.inputs[0])  # link Image output to Viewer input
 
     @staticmethod
-    def generate_output(v, z, gid):
+    def generate_output(v, z, gid, model_name: str):
         from .LOD import LOD
         bpy.context.scene.render.image_settings.file_format = 'PNG'
         bpy.context.scene.render.image_settings.color_mode = 'RGBA'
@@ -55,6 +55,12 @@ class Renderer:
         lod_slices = LOD.sliced(lod, cam, canvas)
         tile_indices_nonempty = [pos for pos in tile_indices if len(lod_slices[pos].data.polygons) > 0]
         assert tile_indices_nonempty, "LOD must not be completely empty, but should contain at least 1 polygon"
+        for count, pos in enumerate(tile_indices_nonempty):
+            iid = instance_id(z.value, v.value, count)
+            mesh_name = f"{model_name}_UserModel_Z{z.value+1}{v.compass_name()}_{count}"
+            mat_name = f"{iid:08X}_{model_name}_UserModel_Z{z.value+1}{v.compass_name()}"
+            lod_slices[pos].name = lod_slices[pos].data.name = mesh_name  # keep object and data names in sync
+            LOD.assign_material_name(lod_slices[pos], mat_name)
         filename = tgi_formatter(gid, z.value, v.value, 0)
         path = get_relative_path_for(f"{filename}.obj")
         LOD.export([lod_slices[pos] for pos in tile_indices_nonempty], path, v)

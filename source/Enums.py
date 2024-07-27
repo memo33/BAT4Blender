@@ -20,6 +20,9 @@ class Rotation(Enum):
     NORTH = 2
     WEST = 3
 
+    def compass_name(self) -> str:
+        return self.name[0]
+
 
 class Zoom(Enum):
     ONE = 0

@@ -5,6 +5,7 @@ from .LOD import LOD
 from .Sun import Sun
 from .Camera import Camera
 from .Renderer import Renderer
+from .Utils import blend_file_name
 from bpy.props import StringProperty
 
 
@@ -48,11 +49,12 @@ class B4BRender(bpy.types.Operator):
 
     def execute(self, context):
         group = context.scene.group_id if context.scene.group_id != "default" else None
+        model_name = blend_file_name()
         steps = [(z, v) for z in Zoom for v in Rotation]
         for i, (z, v) in enumerate(steps):
             print(f"Step ({i+1}/{len(steps)}): zoom {z.value+1}, rotation {v.name}")
             Rig.setup(v, z)
-            Renderer.generate_output(v, z, group)
+            Renderer.generate_output(v, z, group, model_name)
 
         print("FINISHED")
         return {"FINISHED"}

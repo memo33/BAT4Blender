@@ -4,9 +4,14 @@ import os
 tid = "7ab50e44"
 
 
-def tgi_formatter(gid, z, v, no):
+def instance_id(z, v, count):
     t = 0  # default to day render
-    iid = 0x30000 + t * 0x10000 + z * 0x100 + v * 0x10 + no
+    iid = 0x30000 + t * 0x10000 + z * 0x100 + v * 0x10 + count
+    return iid
+
+
+def tgi_formatter(gid, z, v, count):
+    iid = instance_id(z, v, count)
     return f"{tid}_{gid}_{iid:08x}"
 
 
@@ -41,3 +46,7 @@ def b4b_collection():
         c = bpy.data.collections.new(COLLECTION_NAME)
         bpy.context.scene.collection.children.link(c)
         return c
+
+
+def blend_file_name():
+    return bpy.path.display_name_from_filepath(bpy.context.blend_data.filepath)
