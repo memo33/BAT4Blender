@@ -89,6 +89,7 @@ class LOD:
             lod_slice.data.materials[0] = mat
         else:
             lod_slice.data.materials.append(mat)
+        return mat
 
     @staticmethod
     def export(lod_objects, filepath: str, rotation: Rotation):

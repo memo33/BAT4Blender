@@ -57,17 +57,20 @@ class Renderer:
         lod_slices = LOD.sliced(lod, cam, canvas)
         tile_indices_nonempty = [pos for pos in tile_indices if len(lod_slices[pos].data.polygons) > 0]
         assert tile_indices_nonempty, "LOD must not be completely empty, but should contain at least 1 polygon"
+        materials = []
         for count, pos in enumerate(tile_indices_nonempty):
             iid = instance_id(z.value, v.value, count)
             mesh_name = f"{model_name}_UserModel_Z{z.value+1}{v.compass_name()}_{count}"
             mat_name = f"{iid:08X}_{model_name}_UserModel_Z{z.value+1}{v.compass_name()}"
             lod_slices[pos].name = lod_slices[pos].data.name = mesh_name  # keep object and data names in sync
-            LOD.assign_material_name(lod_slices[pos], mat_name)
+            materials.append(LOD.assign_material_name(lod_slices[pos], mat_name))
         path = get_relative_path_for(f"{tgi_formatter(gid, z.value, v.value, 0, is_model=True)}.obj")
         LOD.export([lod_slices[pos] for pos in tile_indices_nonempty], path, v)
         # after export, we can discard LOD slices, as we only need tile indices.
         for lod_slice in lod_slices.values():
             bpy.data.meshes.remove(lod_slice.data)
+        for mat in materials:
+            bpy.data.materials.remove(mat)
 
         # Render the full image to a temporary location
         bpy.context.scene.render.use_border = False  # always render the full frame
