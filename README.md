@@ -25,5 +25,8 @@ Notes
 - [ ] nightlights
 - [ ] darknite settings
 - [ ] HD rendering
-- [ ] conversion of LODs to S3D
+- [x] conversion of LODs to S3D: Using [fshgen](https://github.com/memo33/fshgen/releases):
+  ```
+  fshgen import -o output.SC4Model --force --with-BAT-models --format Dxt1 --gid 0xffffffff *.obj *.png
+  ```    
 - [ ] showing progress while rendering: https://blender.stackexchange.com/a/71830
