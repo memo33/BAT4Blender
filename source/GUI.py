@@ -41,6 +41,8 @@ class MainPanel(bpy.types.Panel):
         layout.label(text="Render")
         render = layout.row()
         render.prop(context.scene, "group_id")
+        hd = layout.row()
+        hd.prop(context.scene, 'b4b_hd', expand=True)
         self.layout.operator(Operators.RENDER.value[0], text="Render all zooms & rotations")
 
 
@@ -57,12 +59,12 @@ class InterfaceVars(bpy.types.PropertyGroup):
     )
 
     zoom: bpy.props.EnumProperty(
-        items=[
+        items=(lambda self, context: [
             (Zoom.ONE.name, '1', 'zoom 1', '', Zoom.ONE.value),
             (Zoom.TWO.name, '2', 'zoom 2', '', Zoom.TWO.value),
             (Zoom.THREE.name, '3', 'zoom 3', '', Zoom.THREE.value),
             (Zoom.FOUR.name, '4', 'zoom 4', '', Zoom.FOUR.value),
-            (Zoom.FIVE.name, '5', 'zoom 5', '', Zoom.FIVE.value),
-        ],
-        default=Zoom.FIVE.name
+            (Zoom.FIVE.name, '5ᴴᴰ' if context.scene.b4b_hd == 'HD' else '5', 'zoom 5', '', Zoom.FIVE.value),
+        ]),
+        default=Zoom.FIVE.value,
     )

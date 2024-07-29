@@ -12,7 +12,7 @@ The general gist of it is as follows.
 6. the Add-on is now installed and available in the `Properties` context menu in the `Scene` tab.
 
 Notes
-- in Blender print output is send to system console, not to the python console. Go to 'Window' -> 'Toggle System Console' to open it.
+- in Blender, print output is sent to system console, not to the Python console. Go to 'Window' -> 'Toggle System Console' to open it.
 
 ## Roadmap
 
@@ -24,7 +24,7 @@ Notes
 - [ ] renderer settings (lighting/shading/materials/…)
 - [ ] nightlights
 - [ ] darknite settings
-- [ ] HD rendering
+- [x] HD rendering
 - [x] conversion of LODs to S3D: Using [fshgen](https://github.com/memo33/fshgen/releases):
   ```
   fshgen import -o output.SC4Model --force --with-BAT-models --format Dxt1 --gid 0xffffffff *.obj *.png

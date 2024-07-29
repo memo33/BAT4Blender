@@ -51,10 +51,11 @@ class B4BRender(bpy.types.Operator):
         group = context.scene.group_id if context.scene.group_id != "default" else None
         model_name = blend_file_name()
         steps = [(z, v) for z in Zoom for v in Rotation]
+        hd = context.scene.b4b_hd == 'HD'
         for i, (z, v) in enumerate(steps):
             print(f"Step ({i+1}/{len(steps)}): zoom {z.value+1}, rotation {v.name}")
-            Rig.setup(v, z)
-            Renderer.generate_output(v, z, group, model_name)
+            Rig.setup(v, z, hd=hd)
+            Renderer.generate_output(v, z, group, model_name, hd=hd)
 
         print("FINISHED")
         return {"FINISHED"}
@@ -67,9 +68,10 @@ class B4BPreview(bpy.types.Operator):
     def execute(self, context):
         v = Rotation[context.window_manager.interface_vars.rotation]
         z = Zoom[context.window_manager.interface_vars.zoom]
-        Rig.setup(v, z)
+        hd = context.scene.b4b_hd == 'HD'
+        Rig.setup(v, z, hd=hd)
         # q: pass the context to the renderer? or just grab it from internals..
-        Renderer.generate_preview(z)
+        Renderer.generate_preview(z, hd=hd)
         return {'FINISHED'}
 
 

@@ -7,7 +7,7 @@ from .Config import CAM_NAME, SUN_NAME, LOD_NAME
 
 class Rig:
     @staticmethod
-    def setup(rotation, zoom):
+    def setup(rotation, zoom, hd: bool):
         if CAM_NAME not in bpy.data.objects:
             Camera.add_to_scene()
         if SUN_NAME not in bpy.data.objects:

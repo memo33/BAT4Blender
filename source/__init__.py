@@ -20,6 +20,13 @@ def register():
             name="Group Id",
             description="the GID as provided by gmax",
             default="default")
+    bpy.types.Scene.b4b_hd = bpy.props.EnumProperty(
+        items=[
+            ('SD', 'SD', "standard definition", '', 0),
+            ('HD', 'HD', "high definition (doubles zoom 5 resolution)", '', 1),
+        ],
+        default='SD',
+    )
 
     bpy.utils.register_class(MainPanel)
     bpy.utils.register_class(GUI_ops.B4BPreview)
@@ -39,6 +46,7 @@ def unregister():
     print("Unregistering addon BAT4Blender.")
     del bpy.types.WindowManager.interface_vars
     del bpy.types.Scene.group_id
+    del bpy.types.Scene.b4b_hd
     bpy.utils.unregister_class(InterfaceVars)
     bpy.utils.unregister_class(MainPanel)
     bpy.utils.unregister_class(GUI_ops.B4BPreview)

@@ -10,6 +10,7 @@ from .Canvas import Canvas
 
 # sd default
 zoom_sizes = [8, 16, 32, 73, 146]  # from SFCameraRigHD.ms (horizontal extent of 16×16 cell in pixels)
+zoom_sizes_hd = [8, 16, 32, 73, 292]
 
 _SLOP = 3
 
@@ -40,7 +41,7 @@ class Renderer:
     #     links.new(rl.outputs[0], v.inputs[0])  # link Image output to Viewer input
 
     @staticmethod
-    def generate_output(v, z, gid, model_name: str):
+    def generate_output(v, z, gid, model_name: str, hd: bool):
         from .LOD import LOD
         import numpy as np
         import os
@@ -48,7 +49,7 @@ class Renderer:
         bpy.context.scene.render.image_settings.color_mode = 'RGBA'
         bpy.context.scene.render.film_transparent = True
         # First, position the camera for the current zoom and rotation. TODO Why does this not use v?
-        canvas = Renderer.camera_manoeuvring(z)
+        canvas = Renderer.camera_manoeuvring(z, hd=hd)
         cam = bpy.context.scene.objects[CAM_NAME]
         lod = bpy.context.scene.objects[LOD_NAME]
 
@@ -109,8 +110,8 @@ class Renderer:
                 pass
 
     @staticmethod
-    def generate_preview(zoom):
-        Renderer.camera_manoeuvring(zoom)
+    def generate_preview(zoom, hd: bool):
+        Renderer.camera_manoeuvring(zoom, hd=hd)
         #  reset camera border in case a large view has been rendered.. may want to do this after rendering instead
         bpy.context.scene.render.border_min_x = 0.0
         bpy.context.scene.render.border_max_x = 1.0
@@ -120,7 +121,7 @@ class Renderer:
         bpy.ops.render.render('INVOKE_DEFAULT', write_still=False)
 
     @staticmethod
-    def camera_manoeuvring(zoom: Zoom) -> Canvas:
+    def camera_manoeuvring(zoom: Zoom, hd: bool) -> Canvas:
         r"""Adjust the offset, orthographic scale and resolution of the current
         camera so that the LOD fits into view, including a margin, and such
         that the orthographic scale results in a pixel-perfect display of the
@@ -140,7 +141,7 @@ class Renderer:
         # where dim_lod is the actual maximum dimension of the LOD in pixels.
         os_reference = Renderer.get_orthographic_scale(depsgraph, cam, lod=None)
         os_lod = Renderer.get_orthographic_scale(depsgraph, cam, lod)
-        dim_lod = zoom_sizes[zoom.value] * os_lod / os_reference
+        dim_lod = (zoom_sizes_hd if hd else zoom_sizes)[zoom.value] * os_lod / os_reference
         cam.data.ortho_scale = os_lod
         canvas = Canvas.create(cam, lod, dim_lod=dim_lod, margin=_SLOP)
 
