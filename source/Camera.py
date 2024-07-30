@@ -1,7 +1,9 @@
 import bpy
+import bpy_extras
 from math import radians, sin, cos
 from .Config import CAM_NAME
 from .Enums import Zoom, Rotation
+from .Utils import b4b_collection
 
 camera_range = 190  # distance of camera from origin
 angle_zoom = [radians(60), radians(55), radians(50), radians(45)]
@@ -32,7 +34,7 @@ class Camera:
         cam_ob.rotation_euler = angles
         cam_ob.data.shift_x = 0.0
         cam_ob.data.shift_y = 0.0
-        bpy.context.collection.objects.link(cam_ob)
+        b4b_collection().objects.link(cam_ob)
 
     @staticmethod
     def update(rotation, zoom):
@@ -62,6 +64,27 @@ class Camera:
     #     (location, rotation) = Camera.get_location_and_rotation(rotation, zoom)
     #     Camera.set_camera(location, rotation)
 
+    @staticmethod
+    def camera_to_view3d():
+        from .Canvas import Canvas
+        override = Canvas.find_view3d()
+        assert 'area' in override
+        override['active_object'] = bpy.data.objects[CAM_NAME]
+        with bpy.context.temp_override(**override):
+            bpy.ops.view3d.object_as_camera()
+            override['region'].data.update()  # updates the matrices so that the change of view takes affect immediately
+
+    @staticmethod
+    def lod_bounds_LRTB(cam, lod) -> (float, float, float, float):
+        r"""Determine the bounding rectangle of the LOD in camera view.
+        """
+        xyz_coords = (lod.matrix_world @ v.co for v in lod.data.vertices)
+        uv_coords = [bpy_extras.object_utils.world_to_camera_view(bpy.context.scene, cam, c) for c in xyz_coords]
+        u_min = min(c[0] for c in uv_coords)
+        u_max = max(c[0] for c in uv_coords)
+        v_min = min(c[1] for c in uv_coords)
+        v_max = max(c[1] for c in uv_coords)
+        return u_min, u_max, v_max, v_min
 
 # debug
 # gui_ops_camera(View.NORTH, Zoom.FIVE)

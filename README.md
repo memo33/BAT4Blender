@@ -17,13 +17,16 @@ Notes
 ## Roadmap
 
 - [x] alpha version (camera positioning, LOD creation, rendering of small objects)
-- [ ] slicing of rendered images if larger than 256 px
-- [ ] slicing of LODs
-- [ ] uv-mapping of LODs
+- [x] slicing of rendered images if larger than 256 px
+- [x] slicing of LODs
+- [x] uv-mapping of LODs
 - [ ] zoom-dependent LODs
 - [ ] renderer settings (lighting/shading/materials/…)
 - [ ] nightlights
 - [ ] darknite settings
 - [ ] HD rendering
-- [ ] conversion of LODs to S3D
+- [x] conversion of LODs to S3D: Using [fshgen](https://github.com/memo33/fshgen/releases):
+  ```
+  fshgen import -o output.SC4Model --force --with-BAT-models --format Dxt1 --gid 0xffffffff *.obj *.png
+  ```    
 - [ ] showing progress while rendering: https://blender.stackexchange.com/a/71830

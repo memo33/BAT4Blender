@@ -1,6 +1,5 @@
-from .Enums import *
-from .Rig import *
-from .LOD import *
+import bpy
+from .Enums import Operators, Rotation, Zoom
 
 
 class MainPanel(bpy.types.Panel):
@@ -27,7 +26,7 @@ class MainPanel(bpy.types.Panel):
         lod = layout.row(align=True)
         lod.operator(Operators.LOD_FIT.value[0], text="Fit")
         lod.operator(Operators.LOD_DELETE.value[0], text="Delete")
-        lod.operator(Operators.LOD_EXPORT.value[0], text="Export .OBJ")
+        # lod.operator(Operators.LOD_EXPORT.value[0], text="Export .OBJ")  # LODs are exported during rendering
 
         layout.label(text="Camera")
         cam = layout.row(align=True)

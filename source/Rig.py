@@ -1,7 +1,8 @@
-from .LOD import *
-from .Camera import *
-from .Sun import *
-from .Renderer import *
+import bpy
+from .LOD import LOD
+from .Camera import Camera
+from .Sun import Sun
+from .Config import CAM_NAME, SUN_NAME, LOD_NAME
 
 
 class Rig:
