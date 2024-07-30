@@ -48,7 +48,9 @@ class B4BRender(bpy.types.Operator):
     bl_label = "Render all zooms & rotations"
 
     def execute(self, context):
-        group = context.scene.group_id if context.scene.group_id != "default" else None
+        if context.scene.group_id in ["default", "", None]:
+            bpy.ops.object.b4b_gid_randomize()  # Operators.GID_RANDOMIZE
+        group = context.scene.group_id
         model_name = blend_file_name()
         steps = [(z, v) for z in Zoom for v in Rotation]
         hd = context.scene.b4b_hd == 'HD'
@@ -136,4 +138,29 @@ class B4BCamDelete(bpy.types.Operator):
 
     def execute(self, context):
         Camera.delete_from_scene()
+        return {'FINISHED'}
+
+
+class B4BGidRandomize(bpy.types.Operator):
+    r"""Generate a new random Group ID"""
+    bl_idname = Operators.GID_RANDOMIZE.value[0]
+    bl_label = "Randomize"
+
+    _skip_gids = {
+        0xbadb57f1,  # S3D (Maxis)
+        0x1abe787d,  # FSH (Misc)
+        0x0986135e,  # FSH (Base/Overlay Texture)
+        0x2BC2759a,  # FSH (Shadow Mask)
+        0x2a2458f9,  # FSH (Animation Sprites (Props))
+        0x49a593e7,  # FSH (Animation Sprites (Non Props))
+        0x891b0e1a,  # FSH (Terrain/Foundation)
+        0x46a006b0,  # FSH (UI Image)
+    }
+
+    def execute(self, context):
+        import random
+        gid = None
+        while gid is None or gid in self._skip_gids:
+            gid = random.randrange(1, 2**32 - 1)
+        context.scene.group_id = f"{gid:08x}"
         return {'FINISHED'}

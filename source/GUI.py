@@ -39,8 +39,9 @@ class MainPanel(bpy.types.Panel):
         sun.operator(Operators.SUN_DELETE.value[0], text="Delete")
 
         layout.label(text="Render")
-        render = layout.row()
-        render.prop(context.scene, "group_id")
+        render = layout.row(align=True)
+        render.prop(context.scene, "group_id", text="Grp ID")
+        render.operator(Operators.GID_RANDOMIZE.value[0], text='', icon='FILE_REFRESH')
         hd = layout.row()
         hd.prop(context.scene, 'b4b_hd', expand=True)
         self.layout.operator(Operators.RENDER.value[0], text="Render all zooms & rotations")

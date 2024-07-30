@@ -17,9 +17,9 @@ def register():
     bpy.utils.register_class(InterfaceVars)
     bpy.types.WindowManager.interface_vars = bpy.props.PointerProperty(type=InterfaceVars)
     bpy.types.Scene.group_id = bpy.props.StringProperty(
-            name="Group Id",
-            description="the GID as provided by gmax",
-            default="default")
+            name="Group ID",
+            description="the Group ID as provided by gmax",
+            default="")
     bpy.types.Scene.b4b_hd = bpy.props.EnumProperty(
         items=[
             ('SD', 'SD', "standard definition", '', 0),
@@ -38,6 +38,7 @@ def register():
     bpy.utils.register_class(GUI_ops.B4BSunDelete)
     bpy.utils.register_class(GUI_ops.B4BCamAdd)
     bpy.utils.register_class(GUI_ops.B4BCamDelete)
+    bpy.utils.register_class(GUI_ops.B4BGidRandomize)
     bpy.utils.register_class(GUI_ops.OkOperator)
     bpy.utils.register_class(GUI_ops.MessageOperator)
 
@@ -58,5 +59,6 @@ def unregister():
     bpy.utils.unregister_class(GUI_ops.B4BSunDelete)
     bpy.utils.unregister_class(GUI_ops.B4BCamAdd)
     bpy.utils.unregister_class(GUI_ops.B4BCamDelete)
+    bpy.utils.unregister_class(GUI_ops.B4BGidRandomize)
     bpy.utils.unregister_class(GUI_ops.OkOperator)
     bpy.utils.unregister_class(GUI_ops.MessageOperator)

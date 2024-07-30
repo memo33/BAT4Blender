@@ -12,6 +12,7 @@ class Operators(Enum):
     SUN_DELETE = "object.b4b_sun_delete",
     CAM_ADD = "object.b4b_camera_add",
     CAM_DELETE = "object.b4b_camera_delete",
+    GID_RANDOMIZE = "object.b4b_gid_randomize",
 
 
 class Rotation(Enum):
