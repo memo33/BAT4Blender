@@ -44,7 +44,15 @@ class MainPanel(bpy.types.Panel):
         render.operator(Operators.GID_RANDOMIZE.value[0], text='', icon='FILE_REFRESH')
         hd = layout.row()
         hd.prop(context.scene, 'b4b_hd', expand=True)
-        self.layout.operator(Operators.RENDER.value[0], text="Render all zooms & rotations")
+        if not context.window_manager.interface_vars.is_rendering:
+            self.layout.operator(Operators.RENDER.value[0], text="Render all zooms & rotations")
+        else:
+            progress_bar = layout.row(align=True)
+            # progress_bar.enabled = False
+            progress_bar.prop(context.window_manager.interface_vars, 'progress')
+            label = layout.row()
+            label.active = False
+            label.label(text=context.window_manager.interface_vars.progress_label)
 
 
 class InterfaceVars(bpy.types.PropertyGroup):
@@ -69,3 +77,7 @@ class InterfaceVars(bpy.types.PropertyGroup):
         ]),
         default=Zoom.FIVE.value,
     )
+
+    is_rendering: bpy.props.BoolProperty(default=False, name="Render In Progress")
+    progress: bpy.props.FloatProperty(name="Progress", subtype='PERCENTAGE', soft_min=0, soft_max=100, precision=0)
+    progress_label: bpy.props.StringProperty()
