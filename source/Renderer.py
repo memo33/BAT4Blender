@@ -7,6 +7,7 @@ from .Config import LOD_NAME, CAM_NAME
 from .Utils import tgi_formatter, get_relative_path_for, translate, instance_id
 from .Enums import Zoom
 from .Canvas import Canvas
+from pathlib import Path
 
 # sd default
 zoom_sizes = [8, 16, 32, 73, 146]  # from SFCameraRigHD.ms (horizontal extent of 16×16 cell in pixels)
@@ -42,9 +43,10 @@ class Renderer:
 
     @staticmethod
     def generate_output(v, z, gid, model_name: str, hd: bool):
+        r"""Export LODs and render images and yield generated .obj and .png files.
+        """
         from .LOD import LOD
         import numpy as np
-        import os
         bpy.context.scene.render.image_settings.file_format = 'PNG'
         bpy.context.scene.render.image_settings.color_mode = 'RGBA'
         bpy.context.scene.render.film_transparent = True
@@ -65,13 +67,21 @@ class Renderer:
             mat_name = f"{iid:08X}_{model_name}_UserModel_Z{z.value+1}{v.compass_name()}"
             lod_slices[pos].name = lod_slices[pos].data.name = mesh_name  # keep object and data names in sync
             materials.append(LOD.assign_material_name(lod_slices[pos], mat_name))
-        path = get_relative_path_for(f"{tgi_formatter(gid, z.value, v.value, 0, is_model=True)}.obj")
-        LOD.export([lod_slices[pos] for pos in tile_indices_nonempty], path, v)
+        stem = tgi_formatter(gid, z.value, v.value, 0, is_model=True)
+        obj_path = get_relative_path_for(f"{stem}.obj")
+        mtl_path = get_relative_path_for(f"{stem}.mtl")
+        LOD.export([lod_slices[pos] for pos in tile_indices_nonempty], obj_path, v)
+        try:
+            # .obj export creates .mtl material files that are not needed
+            Path(mtl_path).unlink(missing_ok=True)
+        except IOError:
+            pass  # ignored
         # after export, we can discard LOD slices, as we only need tile indices.
         for lod_slice in lod_slices.values():
             bpy.data.meshes.remove(lod_slice.data)
         for mat in materials:
             bpy.data.materials.remove(mat)
+        yield obj_path
 
         # Render the full image to a temporary location
         bpy.context.scene.render.use_border = False  # always render the full frame
@@ -100,14 +110,15 @@ class Renderer:
                 img_tile.pixels = arr[bottom:top, left:right, :].ravel()
                 img_tile.save()
                 print(f"Saved: '{img_tile.filepath}'")
+                yield img_tile.filepath
                 bpy.data.images.remove(img_tile)
 
         finally:
             bpy.data.images.remove(img)
             try:
-                os.remove(tmp_path)
-            except FileNotFoundError:
-                pass
+                Path(tmp_path).unlink(missing_ok=True)
+            except IOError:
+                pass  # ignored
 
     @staticmethod
     def generate_preview(zoom, hd: bool):
@@ -186,3 +197,25 @@ class Renderer:
             coordinates = [lod.matrix_world @ v.co for v in lod.data.vertices]
         loc, scale = cam.camera_fit_coords(dg, [vi for v in coordinates for vi in v])
         return scale
+
+    @staticmethod
+    def create_sc4model(fshgen_script: str, files: list[str], name: str, gid: str, delete: bool):
+        import subprocess
+        tgi = tgi_formatter(gid, 0, 0, 0, is_model=True, prefix=True)
+        sc4model = f"{name}-{tgi}.SC4Model"
+        print(f"Using fshgen to create SC4Model: {sc4model}")
+        result = subprocess.run([
+            fshgen_script, "import",
+            "-o", sc4model,
+            "--force",
+            "--with-BAT-models",
+            "--format", "Dxt1",
+            "--gid", f"0x{gid}",
+        ], input="\n".join(files).encode())
+        assert result.returncode == 0  # otherwise previous command would have raised
+        if delete:
+            for f in files:
+                try:
+                    Path(f).unlink(missing_ok=True)
+                except IOError:
+                    pass  # ignored

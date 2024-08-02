@@ -54,10 +54,16 @@ class B4BRender(bpy.types.Operator):
         model_name = blend_file_name()
         steps = [(z, v) for z in Zoom for v in Rotation]
         hd = context.scene.b4b_hd == 'HD'
+        output_files = []
         for i, (z, v) in enumerate(steps):
             print(f"Step ({i+1}/{len(steps)}): zoom {z.value+1}, rotation {v.name}")
             Rig.setup(v, z, hd=hd)
-            Renderer.generate_output(v, z, group, model_name, hd=hd)
+            output_files.extend(Renderer.generate_output(v, z, group, model_name, hd=hd))
+            print("-" * 60)
+
+        if context.scene.b4b_postproc_enabled:
+            fshgen_script = context.preferences.addons[__package__].preferences.fshgen_path or "fshgen"
+            Renderer.create_sc4model(fshgen_script, output_files, name=model_name, gid=group, delete=True)
 
         print("FINISHED")
         return {"FINISHED"}

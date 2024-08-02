@@ -5,7 +5,7 @@ from .Enums import Operators, Rotation, Zoom
 class MainPanel(bpy.types.Panel):
     """Creates a Panel in the scene context of the properties editor"""
     bl_label = "BAT4Blender"
-    bl_idname = "SCENE_PT_layout"
+    bl_idname = 'SCENE_PT_b4b_layout'
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "scene"
@@ -13,10 +13,10 @@ class MainPanel(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         # Create a simple row.
-        layout.label(text="Rotation:")
+        layout.label(text="Rotation")
         rot = layout.row()
         rot.prop(context.window_manager.interface_vars, 'rotation', expand=True)
-        layout.label(text="Zoom:")
+        layout.label(text="Zoom")
         zoom = layout.row()
         zoom.prop(context.window_manager.interface_vars, 'zoom', expand=True)
 
@@ -39,12 +39,34 @@ class MainPanel(bpy.types.Panel):
         sun.operator(Operators.SUN_DELETE.value[0], text="Delete")
 
         layout.label(text="Render")
-        render = layout.row(align=True)
-        render.prop(context.scene, "group_id", text="Grp ID")
-        render.operator(Operators.GID_RANDOMIZE.value[0], text='', icon='FILE_REFRESH')
+        grp = layout.row(align=True)
+        grp.prop(context.scene, 'group_id', text="Grp ID")
+        grp.operator(Operators.GID_RANDOMIZE.value[0], text='', icon='FILE_REFRESH')
         hd = layout.row()
         hd.prop(context.scene, 'b4b_hd', expand=True)
         self.layout.operator(Operators.RENDER.value[0], text="Render all zooms & rotations")
+
+
+class PostProcessPanel(bpy.types.Panel):
+    """A subpanel for BAT4Blender scene context of the properties editor"""
+    bl_label = "Post-processing"
+    bl_idname = 'SCENE_PT_b4b_postprocess'
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = 'scene'
+    bl_parent_id = 'SCENE_PT_b4b_layout'
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw_header(self, context):
+        layout = self.layout
+        layout.prop(context.scene, 'b4b_postproc_enabled', icon_only=True)
+
+    def draw(self, context):
+        layout = self.layout
+        layout.label(text="SC4Model creation")
+        row = layout.row()
+        row.prop(context.preferences.addons[__package__].preferences, 'fshgen_path', text="fshgen")
+        row.enabled = context.scene.b4b_postproc_enabled
 
 
 class InterfaceVars(bpy.types.PropertyGroup):
@@ -69,3 +91,19 @@ class InterfaceVars(bpy.types.PropertyGroup):
         ]),
         default=Zoom.FIVE.value,
     )
+
+
+class B4BPreferences(bpy.types.AddonPreferences):
+    bl_idname = __package__
+
+    fshgen_path: bpy.props.StringProperty(
+        name="""The "fshgen" script file""",
+        description="""For creating SC4Model files, install "fshgen" and select the location of the "fshgen.bat" (Windows) or "fshgen" (macOS/Linux) script file if it is not on your PATH""",
+        subtype='FILE_PATH',
+    )
+
+    def draw(self, context):
+        layout = self.layout
+        desc = self.__annotations__['fshgen_path'].keywords['description']
+        layout.label(text=f"{desc}.")
+        layout.prop(self, 'fshgen_path')

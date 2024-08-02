@@ -1,5 +1,5 @@
 import bpy
-from .GUI import InterfaceVars, MainPanel
+from .GUI import InterfaceVars, MainPanel, PostProcessPanel, B4BPreferences
 from . import GUI_ops
 
 bl_info = {
@@ -27,8 +27,15 @@ def register():
         ],
         default='SD',
     )
+    bpy.types.Scene.b4b_postproc_enabled = bpy.props.BoolProperty(
+        default=False,
+        name="Post-processing",
+        description="When enabled, create SC4Model after rendering and delete intermediate files",
+    )
 
     bpy.utils.register_class(MainPanel)
+    bpy.utils.register_class(PostProcessPanel)
+    bpy.utils.register_class(B4BPreferences)
     bpy.utils.register_class(GUI_ops.B4BPreview)
     bpy.utils.register_class(GUI_ops.B4BRender)
     bpy.utils.register_class(GUI_ops.B4BLODExport)
@@ -48,8 +55,11 @@ def unregister():
     del bpy.types.WindowManager.interface_vars
     del bpy.types.Scene.group_id
     del bpy.types.Scene.b4b_hd
+    del bpy.types.Scene.b4b_postproc_enabled
     bpy.utils.unregister_class(InterfaceVars)
     bpy.utils.unregister_class(MainPanel)
+    bpy.utils.unregister_class(PostProcessPanel)
+    bpy.utils.unregister_class(B4BPreferences)
     bpy.utils.unregister_class(GUI_ops.B4BPreview)
     bpy.utils.unregister_class(GUI_ops.B4BRender)
     bpy.utils.unregister_class(GUI_ops.B4BLODExport)

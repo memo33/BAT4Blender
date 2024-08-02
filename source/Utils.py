@@ -19,9 +19,13 @@ def instance_id(z, v, count):
     return iid
 
 
-def tgi_formatter(gid, z, v, count, is_model=False):
+def tgi_formatter(gid: str, z, v, count, is_model=False, prefix=False):
     iid = instance_id(z, v, count)
-    return f"{tid_s3d if is_model else tid_fsh}_{gid}_{iid:08x}"
+    return "_".join(f"0x{i}" if prefix else i for i in [
+        (tid_s3d if is_model else tid_fsh),
+        gid,
+        f"{iid:08x}",
+    ])
 
 
 def get_relative_path_for(fn):
