@@ -19,7 +19,7 @@ class LOD:
         b_boxes = []
         # TODO this does not take hide_render state of collections into account yet
         for obj in bpy.context.scene.objects:
-            if obj.type == 'MESH' and not obj.hide_render:
+            if obj.type == 'MESH' and (not obj.hide_render) and obj.visible_camera:  # the latter is only available with Cycles (Object > Visibility > Ray Visibility)
                 bbox_corners = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
                 b_boxes.append(bbox_corners)
         return b_boxes
