@@ -51,14 +51,27 @@ def clip(value: float, min: float, max: float) -> float:
     return min if value < min else max if value > max else value
 
 
+def find_object(collection, name: str):
+    r"""Look up an object in a collection by name. The name is treated as
+    prefix to handle duplicate names such as `name.001`, for example when
+    working with multiple scenes.
+    """
+    if name in collection.objects:
+        return collection.objects[name]
+    for ob in collection.objects:
+        if ob.name.startswith(name):
+            return ob
+    return None
+
+
 def b4b_collection():
     from .Config import COLLECTION_NAME
-    if COLLECTION_NAME in bpy.data.collections:
-        return bpy.data.collections[COLLECTION_NAME]
-    else:
-        c = bpy.data.collections.new(COLLECTION_NAME)
-        bpy.context.scene.collection.children.link(c)
-        return c
+    for coll in bpy.context.scene.collection.children:
+        if coll.name.startswith(COLLECTION_NAME):
+            return coll
+    coll = bpy.data.collections.new(COLLECTION_NAME)
+    bpy.context.scene.collection.children.link(coll)
+    return coll
 
 
 def blend_file_name():

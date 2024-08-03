@@ -3,7 +3,7 @@ import bpy_extras
 from math import radians, sin, cos
 from .Config import CAM_NAME
 from .Enums import Zoom, Rotation
-from .Utils import b4b_collection
+from .Utils import b4b_collection, find_object
 
 camera_range = 190  # distance of camera from origin
 angle_zoom = [radians(60), radians(55), radians(50), radians(45)]
@@ -39,37 +39,31 @@ class Camera:
     @staticmethod
     def update(rotation, zoom):
         (loc, rot) = Camera.get_location_and_rotation(rotation, zoom)
-        bpy.data.objects[CAM_NAME].location = loc
-        bpy.data.objects[CAM_NAME].rotation_euler = rot
+        cam = find_object(b4b_collection(), CAM_NAME)
+        cam.location = loc
+        cam.rotation_euler = rot
         bpy.context.view_layer.update()
 
     @staticmethod
     def add_to_scene():
-        if CAM_NAME not in bpy.data.objects:
-            (location, rotation) = Camera.get_location_and_rotation(Rotation.NORTH, Zoom.FIVE)
+        if find_object(b4b_collection(), CAM_NAME) is None:
+            v = Rotation[bpy.context.window_manager.b4b.rotation]
+            z = Zoom[bpy.context.window_manager.b4b.zoom]
+            (location, rotation) = Camera.get_location_and_rotation(v, z)
             Camera.set_camera(location, rotation)
 
     @staticmethod
     def delete_from_scene():
-        if CAM_NAME in bpy.data.objects:
-            ob = bpy.data.objects[CAM_NAME]
+        ob = find_object(b4b_collection(), CAM_NAME)
+        if ob is not None:
             bpy.data.cameras.remove(ob.data, do_unlink=True)
-
-    # @staticmethod
-    # def gui_ops_camera(rotation, zoom):
-    #     # if CAM_NAME not in bpy.data.objects:
-    #     for ob in bpy.data.objects:
-    #         if ob.type == 'CAMERA' and ob.name == CAM_NAME:
-    #             bpy.data.cameras.remove(ob.data, do_unlink=True)
-    #     (location, rotation) = Camera.get_location_and_rotation(rotation, zoom)
-    #     Camera.set_camera(location, rotation)
 
     @staticmethod
     def camera_to_view3d():
         from .Canvas import Canvas
         override = Canvas.find_view3d()
         assert 'area' in override
-        override['active_object'] = bpy.data.objects[CAM_NAME]
+        override['active_object'] = find_object(b4b_collection(), CAM_NAME)  # TODO what if None?
         with bpy.context.temp_override(**override):
             bpy.ops.view3d.object_as_camera()
             override['region'].data.update()  # updates the matrices so that the change of view takes affect immediately
@@ -85,6 +79,3 @@ class Camera:
         v_min = min(c[1] for c in uv_coords)
         v_max = max(c[1] for c in uv_coords)
         return u_min, u_max, v_max, v_min
-
-# debug
-# gui_ops_camera(View.NORTH, Zoom.FIVE)

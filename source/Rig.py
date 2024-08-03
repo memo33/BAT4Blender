@@ -4,16 +4,16 @@ from .LOD import LOD
 from .Camera import Camera
 from .Sun import Sun
 from .Config import CAM_NAME, SUN_NAME, LODZ_NAME
-from .Utils import b4b_collection
+from .Utils import b4b_collection, find_object
 
 
 class Rig:
     @staticmethod
     def setup(rotation, zoom, hd: bool):
         coll = b4b_collection()
-        if CAM_NAME not in coll.objects:
+        if find_object(coll, CAM_NAME) is None:
             Camera.add_to_scene()
-        if SUN_NAME not in coll.objects:
+        if find_object(coll, SUN_NAME) is None:
             Sun.add_to_scene()
         Rig.lods_add()
 
@@ -25,7 +25,7 @@ class Rig:
     def lods_add():
         coll = b4b_collection()
         for z, name in enumerate(LODZ_NAME):
-            if name not in coll.objects:
+            if find_object(coll, name) is None:
                 LOD.fit_new(Zoom(z))
 
     @staticmethod
@@ -35,9 +35,7 @@ class Rig:
 
     @staticmethod
     def lod_delete(zoom: Zoom):
-        name = LODZ_NAME[zoom.value]
-        coll = b4b_collection()
-        if name in coll.objects:
-            ob = coll.objects[name]
+        ob = find_object(b4b_collection(), LODZ_NAME[zoom.value])
+        if ob is not None:
             bpy.data.meshes.remove(ob.data, do_unlink=True, do_ui_user=True)
         bpy.context.view_layer.update()
