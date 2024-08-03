@@ -51,7 +51,7 @@ class MainPanel(bpy.types.Panel):
 
 class PostProcessPanel(bpy.types.Panel):
     """A subpanel for BAT4Blender scene context of the properties editor"""
-    bl_label = "Post-processing"
+    bl_label = "Post-Processing"
     bl_idname = 'SCENE_PT_b4b_postprocess'
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
@@ -65,7 +65,7 @@ class PostProcessPanel(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.label(text="SC4Model creation")
+        layout.label(text="SC4Model Creation")
         row = layout.row()
         row.prop(context.preferences.addons[__package__].preferences, 'fshgen_path', text="fshgen")
         row.enabled = context.scene.b4b.postproc_enabled
@@ -117,7 +117,7 @@ class B4BSceneProps(bpy.types.PropertyGroup):
 
     postproc_enabled: bpy.props.BoolProperty(
         default=False,
-        name="Post-processing",
+        name="Post-Processing",
         description="When enabled, create SC4Model after rendering and delete intermediate files",
     )
 

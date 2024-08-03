@@ -3,7 +3,7 @@ from __future__ import annotations
 import bpy
 from mathutils import Vector
 from .Config import LODZ_NAME, CAM_NAME
-from .Utils import tgi_formatter, get_relative_path_for, translate, instance_id, b4b_collection
+from .Utils import tgi_formatter, get_relative_path_for, translate, instance_id, b4b_collection, find_object
 from .Enums import Zoom
 from .Canvas import Canvas
 from pathlib import Path
@@ -52,8 +52,8 @@ class Renderer:
         # First, position the camera for the current zoom and rotation. TODO Why does this not use v?
         canvas = Renderer.camera_manoeuvring(z, hd=hd)
         coll = b4b_collection()
-        cam = coll.objects[CAM_NAME]
-        lod = coll.objects[LODZ_NAME[z.value]]
+        cam = find_object(coll, CAM_NAME)
+        lod = find_object(coll, LODZ_NAME[z.value])
 
         # Next, slice the LOD and export it.
         tile_indices = list(canvas.tiles())
@@ -139,8 +139,8 @@ class Renderer:
         rendered image at the given zoom level.
         """
         coll = b4b_collection()
-        cam = coll.objects[CAM_NAME]
-        lod = coll.objects[LODZ_NAME[zoom.value]]
+        cam = find_object(coll, CAM_NAME)
+        lod = find_object(coll, LODZ_NAME[zoom.value])
         bpy.context.scene.render.resolution_x = 256  # temporary for computation of os_reference
         bpy.context.scene.render.resolution_y = 256
         depsgraph = bpy.context.evaluated_depsgraph_get()

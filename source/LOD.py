@@ -17,6 +17,7 @@ class LOD:
     @staticmethod
     def get_all_bound_boxes() -> List:
         b_boxes = []
+        # TODO this does not take hide_render state of collections into account yet
         for obj in bpy.context.scene.objects:
             if obj.type == 'MESH' and not obj.hide_render:
                 bbox_corners = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]

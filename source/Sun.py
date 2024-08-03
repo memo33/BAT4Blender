@@ -3,7 +3,7 @@ from math import radians, atan2
 from mathutils import Vector
 from .Config import SUN_NAME
 from .Enums import Rotation
-from .Utils import b4b_collection
+from .Utils import b4b_collection, find_object
 
 
 _sun_loc = (0, 0, 1000)  # sun position doesn't matter, just put it somewhere up high and out of the way
@@ -41,17 +41,16 @@ class Sun:
     @staticmethod
     def update(rotation):
         sun_rot = Sun.get_sun_rotation(rotation)
-        b4b_collection().objects[SUN_NAME].rotation_euler = sun_rot
+        find_object(b4b_collection(), SUN_NAME).rotation_euler = sun_rot
 
     @staticmethod
     def add_to_scene():
-        if SUN_NAME not in b4b_collection().objects:
+        if find_object(b4b_collection(), SUN_NAME) is None:
             sun_rot = Sun.get_sun_rotation(Rotation.SOUTH)
             Sun.set_sun(sun_rot)
 
     @staticmethod
     def delete_from_scene():
-        coll = b4b_collection()
-        if SUN_NAME in coll.objects:
-            ob = coll.objects[SUN_NAME]
+        ob = find_object(b4b_collection(), SUN_NAME)
+        if ob is not None:
             bpy.data.lights.remove(ob.data, do_unlink=True)
