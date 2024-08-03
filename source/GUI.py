@@ -20,11 +20,13 @@ class MainPanel(bpy.types.Panel):
         zoom = layout.row()
         zoom.prop(context.window_manager.b4b, 'zoom', expand=True)
 
-        self.layout.operator(Operators.PREVIEW.value[0], text="Preview")
+        self.layout.operator(Operators.PREVIEW.value[0])
 
-        layout.label(text="LOD")
+        layout.label(text="LODs")
         lod = layout.row(align=True)
-        lod.operator(Operators.LOD_FIT.value[0], text="Fit")
+        lod.operator(Operators.LOD_ADD.value[0], text="Add")
+        z = Zoom[context.window_manager.b4b.zoom]
+        lod.operator(Operators.LOD_FIT_ZOOM.value[0], text=f"Fit Z{z.value+1}")
         lod.operator(Operators.LOD_DELETE.value[0], text="Delete")
         # lod.operator(Operators.LOD_EXPORT.value[0], text="Export .OBJ")  # LODs are exported during rendering
 
@@ -44,7 +46,7 @@ class MainPanel(bpy.types.Panel):
         grp.operator(Operators.GID_RANDOMIZE.value[0], text='', icon='FILE_REFRESH')
         hd = layout.row()
         hd.prop(context.scene.b4b, 'hd', expand=True)
-        self.layout.operator(Operators.RENDER.value[0], text="Render all zooms & rotations")
+        self.layout.operator(Operators.RENDER.value[0])
 
 
 class PostProcessPanel(bpy.types.Panel):

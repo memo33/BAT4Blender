@@ -4,8 +4,8 @@ from enum import Enum
 class Operators(Enum):
     PREVIEW = "object.b4b_preview",
     RENDER = "object.b4b_render",
-    LOD_EXPORT = "object.b4b_lod_export",
-    LOD_FIT = "object.b4b_lod_fit",
+    LOD_FIT_ZOOM = "object.b4b_lod_fit_zoom",
+    LOD_ADD = "object.b4b_lod_add",
     LOD_CUSTOM = "object.b4b_lod_custom",
     LOD_DELETE = "object.b4b_lod_delete",
     SUN_ADD = "object.b4b_sun_add",

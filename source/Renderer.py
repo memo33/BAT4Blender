@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import bpy
-from math import tan, atan
 from mathutils import Vector
-from .Config import LOD_NAME, CAM_NAME
-from .Utils import tgi_formatter, get_relative_path_for, translate, instance_id
+from .Config import LODZ_NAME, CAM_NAME
+from .Utils import tgi_formatter, get_relative_path_for, translate, instance_id, b4b_collection
 from .Enums import Zoom
 from .Canvas import Canvas
 from pathlib import Path
@@ -52,8 +51,9 @@ class Renderer:
         bpy.context.scene.render.film_transparent = True
         # First, position the camera for the current zoom and rotation. TODO Why does this not use v?
         canvas = Renderer.camera_manoeuvring(z, hd=hd)
-        cam = bpy.context.scene.objects[CAM_NAME]
-        lod = bpy.context.scene.objects[LOD_NAME]
+        coll = b4b_collection()
+        cam = coll.objects[CAM_NAME]
+        lod = coll.objects[LODZ_NAME[z.value]]
 
         # Next, slice the LOD and export it.
         tile_indices = list(canvas.tiles())
@@ -121,7 +121,7 @@ class Renderer:
                 pass  # ignored
 
     @staticmethod
-    def generate_preview(zoom, hd: bool):
+    def generate_preview(zoom: Zoom, hd: bool):
         Renderer.camera_manoeuvring(zoom, hd=hd)
         #  reset camera border in case a large view has been rendered.. may want to do this after rendering instead
         bpy.context.scene.render.border_min_x = 0.0
@@ -138,8 +138,9 @@ class Renderer:
         that the orthographic scale results in a pixel-perfect display of the
         rendered image at the given zoom level.
         """
-        lod = bpy.context.scene.objects[LOD_NAME]
-        cam = bpy.context.scene.objects[CAM_NAME]
+        coll = b4b_collection()
+        cam = coll.objects[CAM_NAME]
+        lod = coll.objects[LODZ_NAME[zoom.value]]
         bpy.context.scene.render.resolution_x = 256  # temporary for computation of os_reference
         bpy.context.scene.render.resolution_y = 256
         depsgraph = bpy.context.evaluated_depsgraph_get()

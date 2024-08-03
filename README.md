@@ -20,7 +20,7 @@ Notes
 - [x] slicing of rendered images if larger than 256 px
 - [x] slicing of LODs
 - [x] uv-mapping of LODs
-- [ ] zoom-dependent LODs
+- [x] zoom-dependent LODs
 - [ ] renderer settings (lighting/shading/materials/…)
 - [ ] nightlights
 - [ ] darknite settings

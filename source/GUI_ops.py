@@ -44,7 +44,7 @@ class MessageOperator(bpy.types.Operator):
 
 
 class B4BRender(bpy.types.Operator):
-    r"""Exports LOD .obj files and rendered images. Progress is displayed in system console"""
+    bl_description = r"""Exports LOD .obj files and rendered images. Progress is displayed in system console"""
     bl_idname = Operators.RENDER.value[0]
     bl_label = "Render all zooms & rotations"
 
@@ -71,7 +71,7 @@ class B4BRender(bpy.types.Operator):
 
 
 class B4BPreview(bpy.types.Operator):
-    r"""Render a preview image for the current zoom"""
+    bl_description = r"""Render a preview image for the current zoom"""
     bl_idname = Operators.PREVIEW.value[0]
     bl_label = "Preview"
 
@@ -85,31 +85,37 @@ class B4BPreview(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class B4BLODExport(bpy.types.Operator):
-    bl_idname = Operators.LOD_EXPORT.value[0]
-    bl_label = "LODExport"
+class B4BLODAdd(bpy.types.Operator):
+    bl_description = ("Add (and fit) all missing LODs, if any.\n"
+                      "Note: Keep LODs as simple as possible, especially for distant zoom levels")
+    bl_idname = Operators.LOD_ADD.value[0]
+    bl_label = "LOD add"
 
     def execute(self, context):
-        LOD.export()
+        Rig.lods_add()
         return {'FINISHED'}
 
 
-class B4BLODAdd(bpy.types.Operator):
-    r"""Fit the LOD around all meshes that are rendered. Create the LOD if necessary"""
-    bl_idname = Operators.LOD_FIT.value[0]
-    bl_label = "LOD fit"
+class B4BLODFitZoom(bpy.types.Operator):
+    bl_description = ("For the selected zoom level, refit the LOD around all rendered meshes. Create the LOD if necessary.\n"
+                      "Note: Keep LODs as simple as possible, especially for distant zoom levels")
+    bl_idname = Operators.LOD_FIT_ZOOM.value[0]
+    bl_label = "LOD fit for zoom"
 
     def execute(self, context):
-        Rig.lod_fit()
+        z = Zoom[context.window_manager.b4b.zoom]
+        Rig.lod_fit(z)
         return {'FINISHED'}
 
 
 class B4BLODDelete(bpy.types.Operator):
+    bl_description = "Delete all LODs"
     bl_idname = Operators.LOD_DELETE.value[0]
     bl_label = "LODDelete"
 
     def execute(self, context):
-        Rig.lod_delete()
+        for z in Zoom:
+            Rig.lod_delete(z)
         return {'FINISHED'}
 
 
@@ -150,7 +156,7 @@ class B4BCamDelete(bpy.types.Operator):
 
 
 class B4BGidRandomize(bpy.types.Operator):
-    r"""Generate a new random Group ID"""
+    bl_description = r"""Generate a new random Group ID"""
     bl_idname = Operators.GID_RANDOMIZE.value[0]
     bl_label = "Randomize"
 

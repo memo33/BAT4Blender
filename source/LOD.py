@@ -2,17 +2,17 @@ import bpy
 import bmesh
 from mathutils import Vector, Matrix
 from typing import List, Any
-from .Config import LOD_NAME
+from .Config import LODZ_NAME
 from .Utils import b4b_collection, translate, clip
-from .Enums import Rotation
+from .Enums import Rotation, Zoom
 
 
 class LOD:
     @staticmethod
-    def fit_new():
+    def fit_new(zoom: Zoom):
         bb = LOD.get_all_bound_boxes()
         min_max_xyz = LOD.get_min_max_xyz(bb)
-        LOD.create_and_update(min_max_xyz)
+        LOD.create_and_update(zoom, min_max_xyz)
 
     @staticmethod
     def get_all_bound_boxes() -> List:
@@ -44,7 +44,8 @@ class LOD:
         return [min_x, max_x, min_y, max_y, min_z, max_z]
 
     @staticmethod
-    def get_mesh_cube(name) -> object:
+    def get_mesh_cube(zoom: Zoom) -> object:
+        name = LODZ_NAME[zoom.value]
         verts = [(1.0, 1.0, -1.0),
                  (1.0, -1.0, -1.0),
                  (-1.0, -1.0, -1.0),
@@ -64,13 +65,13 @@ class LOD:
         return bpy.data.objects.new(name, mesh)
 
     @staticmethod
-    def create_and_update(xyz_mm: List[Any]):
+    def create_and_update(zoom: Zoom, xyz_mm: List[Any]):
         width = xyz_mm[1] - xyz_mm[0]
         depth = xyz_mm[3] - xyz_mm[2]
         height = xyz_mm[5] - xyz_mm[4]
         loc = (xyz_mm[0] + width / 2, xyz_mm[2] + depth / 2, xyz_mm[4] + height / 2)
 
-        c = LOD.get_mesh_cube(LOD_NAME)
+        c = LOD.get_mesh_cube(zoom)
         c.matrix_world @= Matrix.Translation(loc)
         c.matrix_world @= Matrix.Scale(width / 2, 4, (1, 0, 0))
         c.matrix_world @= Matrix.Scale(depth / 2, 4, (0, 1, 0))
@@ -94,11 +95,10 @@ class LOD:
     @staticmethod
     def export(lod_objects, filepath: str, rotation: Rotation):
         r"""Export a list of sliced LOD objects as a single .obj file"""
-        # if LOD_NAME in bpy.data.objects:
         with bpy.context.temp_override(selected_objects=lod_objects):
             # In Blender 4+, bpy.ops.wm.obj_export can be used instead, but arguments differ
             bpy.ops.export_scene.obj(
-                filepath=filepath,  # "{}.obj".format(get_relative_path_for(LOD_NAME)),
+                filepath=filepath,
                 check_existing=False,
                 axis_up='Y',
                 axis_forward=(
