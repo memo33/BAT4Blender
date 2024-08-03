@@ -39,37 +39,30 @@ class Camera:
     @staticmethod
     def update(rotation, zoom):
         (loc, rot) = Camera.get_location_and_rotation(rotation, zoom)
-        bpy.data.objects[CAM_NAME].location = loc
-        bpy.data.objects[CAM_NAME].rotation_euler = rot
+        cam = b4b_collection().objects[CAM_NAME]
+        cam.location = loc
+        cam.rotation_euler = rot
         bpy.context.view_layer.update()
 
     @staticmethod
     def add_to_scene():
-        if CAM_NAME not in bpy.data.objects:
+        if CAM_NAME not in b4b_collection().objects:
             (location, rotation) = Camera.get_location_and_rotation(Rotation.NORTH, Zoom.FIVE)
             Camera.set_camera(location, rotation)
 
     @staticmethod
     def delete_from_scene():
-        if CAM_NAME in bpy.data.objects:
-            ob = bpy.data.objects[CAM_NAME]
+        coll = b4b_collection()
+        if CAM_NAME in coll.objects:
+            ob = coll.objects[CAM_NAME]
             bpy.data.cameras.remove(ob.data, do_unlink=True)
-
-    # @staticmethod
-    # def gui_ops_camera(rotation, zoom):
-    #     # if CAM_NAME not in bpy.data.objects:
-    #     for ob in bpy.data.objects:
-    #         if ob.type == 'CAMERA' and ob.name == CAM_NAME:
-    #             bpy.data.cameras.remove(ob.data, do_unlink=True)
-    #     (location, rotation) = Camera.get_location_and_rotation(rotation, zoom)
-    #     Camera.set_camera(location, rotation)
 
     @staticmethod
     def camera_to_view3d():
         from .Canvas import Canvas
         override = Canvas.find_view3d()
         assert 'area' in override
-        override['active_object'] = bpy.data.objects[CAM_NAME]
+        override['active_object'] = b4b_collection().objects[CAM_NAME]
         with bpy.context.temp_override(**override):
             bpy.ops.view3d.object_as_camera()
             override['region'].data.update()  # updates the matrices so that the change of view takes affect immediately

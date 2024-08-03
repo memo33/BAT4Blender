@@ -41,27 +41,17 @@ class Sun:
     @staticmethod
     def update(rotation):
         sun_rot = Sun.get_sun_rotation(rotation)
-        bpy.data.objects[SUN_NAME].rotation_euler = sun_rot
+        b4b_collection().objects[SUN_NAME].rotation_euler = sun_rot
 
     @staticmethod
     def add_to_scene():
-        if SUN_NAME not in bpy.data.objects:
+        if SUN_NAME not in b4b_collection().objects:
             sun_rot = Sun.get_sun_rotation(Rotation.SOUTH)
             Sun.set_sun(sun_rot)
 
     @staticmethod
     def delete_from_scene():
-        if SUN_NAME in bpy.data.objects:
-            ob = bpy.data.objects[SUN_NAME]
+        coll = b4b_collection()
+        if SUN_NAME in coll.objects:
+            ob = coll.objects[SUN_NAME]
             bpy.data.lights.remove(ob.data, do_unlink=True)
-
-    # @staticmethod
-    # def gui_ops_sun(rotation):
-    #     for ob in bpy.data.objects:
-    #         if ob.type == 'LAMP' and ob.name == SUN_NAME:
-    #             bpy.data.lights.remove(ob.data, do_unlink=True)
-    #     sun_rot = Sun.get_sun_rotation(rotation)
-    #     Sun.set_sun(sun_rot)
-
-
-# gui_ops_sun(View.NORTH)
