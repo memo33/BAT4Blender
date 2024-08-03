@@ -1,12 +1,12 @@
 import bpy
-from .GUI import InterfaceVars, MainPanel, PostProcessPanel, B4BPreferences
+from .GUI import B4BWmProps, B4BSceneProps, MainPanel, PostProcessPanel, B4BPreferences
 from . import GUI_ops
 
 bl_info = {
     "name": "BAT4Blender",
     "category": "Render",
     "blender": (3, 2, 0),  # minimum Blender version
-    "author": "vrtxt",
+    "author": "vrtxt, memo",
     "version": (0, 0, 3),
 }
 
@@ -14,28 +14,14 @@ bl_info = {
 # note: registering is order dependent! i.e. registering layout before vars will throw errors
 def register():
     print("Registering addon BAT4Blender.")
-    bpy.utils.register_class(InterfaceVars)
-    bpy.types.WindowManager.interface_vars = bpy.props.PointerProperty(type=InterfaceVars)
-    bpy.types.Scene.group_id = bpy.props.StringProperty(
-            name="Group ID",
-            description="the Group ID as provided by gmax",
-            default="")
-    bpy.types.Scene.b4b_hd = bpy.props.EnumProperty(
-        items=[
-            ('SD', 'SD', "standard definition", '', 0),
-            ('HD', 'HD', "high definition (doubles zoom 5 resolution)", '', 1),
-        ],
-        default='SD',
-    )
-    bpy.types.Scene.b4b_postproc_enabled = bpy.props.BoolProperty(
-        default=False,
-        name="Post-processing",
-        description="When enabled, create SC4Model after rendering and delete intermediate files",
-    )
+    bpy.utils.register_class(B4BWmProps)
+    bpy.types.WindowManager.b4b = bpy.props.PointerProperty(type=B4BWmProps)
+    bpy.utils.register_class(B4BSceneProps)
+    bpy.types.Scene.b4b = bpy.props.PointerProperty(type=B4BSceneProps)
+    bpy.utils.register_class(B4BPreferences)
 
     bpy.utils.register_class(MainPanel)
     bpy.utils.register_class(PostProcessPanel)
-    bpy.utils.register_class(B4BPreferences)
     bpy.utils.register_class(GUI_ops.B4BPreview)
     bpy.utils.register_class(GUI_ops.B4BRender)
     bpy.utils.register_class(GUI_ops.B4BLODExport)
@@ -52,14 +38,13 @@ def register():
 
 def unregister():
     print("Unregistering addon BAT4Blender.")
-    del bpy.types.WindowManager.interface_vars
-    del bpy.types.Scene.group_id
-    del bpy.types.Scene.b4b_hd
-    del bpy.types.Scene.b4b_postproc_enabled
-    bpy.utils.unregister_class(InterfaceVars)
+    del bpy.types.WindowManager.b4b
+    del bpy.types.Scene.b4b
+    bpy.utils.unregister_class(B4BWmProps)
+    bpy.utils.unregister_class(B4BSceneProps)
+    bpy.utils.unregister_class(B4BPreferences)
     bpy.utils.unregister_class(MainPanel)
     bpy.utils.unregister_class(PostProcessPanel)
-    bpy.utils.unregister_class(B4BPreferences)
     bpy.utils.unregister_class(GUI_ops.B4BPreview)
     bpy.utils.unregister_class(GUI_ops.B4BRender)
     bpy.utils.unregister_class(GUI_ops.B4BLODExport)

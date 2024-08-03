@@ -44,16 +44,17 @@ class MessageOperator(bpy.types.Operator):
 
 
 class B4BRender(bpy.types.Operator):
+    r"""Exports LOD .obj files and rendered images. Progress is displayed in system console"""
     bl_idname = Operators.RENDER.value[0]
     bl_label = "Render all zooms & rotations"
 
     def execute(self, context):
-        if context.scene.group_id in ["default", "", None]:
+        if context.scene.b4b.group_id in ["default", "", None]:
             bpy.ops.object.b4b_gid_randomize()  # Operators.GID_RANDOMIZE
-        group = context.scene.group_id
+        group = context.scene.b4b.group_id
         model_name = blend_file_name()
         steps = [(z, v) for z in Zoom for v in Rotation]
-        hd = context.scene.b4b_hd == 'HD'
+        hd = context.scene.b4b.hd == 'HD'
         output_files = []
         for i, (z, v) in enumerate(steps):
             print(f"Step ({i+1}/{len(steps)}): zoom {z.value+1}, rotation {v.name}")
@@ -61,7 +62,7 @@ class B4BRender(bpy.types.Operator):
             output_files.extend(Renderer.generate_output(v, z, group, model_name, hd=hd))
             print("-" * 60)
 
-        if context.scene.b4b_postproc_enabled:
+        if context.scene.b4b.postproc_enabled:
             fshgen_script = context.preferences.addons[__package__].preferences.fshgen_path or "fshgen"
             Renderer.create_sc4model(fshgen_script, output_files, name=model_name, gid=group, delete=True)
 
@@ -70,13 +71,14 @@ class B4BRender(bpy.types.Operator):
 
 
 class B4BPreview(bpy.types.Operator):
+    r"""Render a preview image for the current zoom"""
     bl_idname = Operators.PREVIEW.value[0]
     bl_label = "Preview"
 
     def execute(self, context):
-        v = Rotation[context.window_manager.interface_vars.rotation]
-        z = Zoom[context.window_manager.interface_vars.zoom]
-        hd = context.scene.b4b_hd == 'HD'
+        v = Rotation[context.window_manager.b4b.rotation]
+        z = Zoom[context.window_manager.b4b.zoom]
+        hd = context.scene.b4b.hd == 'HD'
         Rig.setup(v, z, hd=hd)
         # q: pass the context to the renderer? or just grab it from internals..
         Renderer.generate_preview(z, hd=hd)
@@ -168,5 +170,5 @@ class B4BGidRandomize(bpy.types.Operator):
         gid = None
         while gid is None or gid in self._skip_gids:
             gid = random.randrange(1, 2**32 - 1)
-        context.scene.group_id = f"{gid:08x}"
+        context.scene.b4b.group_id = f"{gid:08x}"
         return {'FINISHED'}

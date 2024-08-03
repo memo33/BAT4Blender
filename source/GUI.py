@@ -15,10 +15,10 @@ class MainPanel(bpy.types.Panel):
         # Create a simple row.
         layout.label(text="Rotation")
         rot = layout.row()
-        rot.prop(context.window_manager.interface_vars, 'rotation', expand=True)
+        rot.prop(context.window_manager.b4b, 'rotation', expand=True)
         layout.label(text="Zoom")
         zoom = layout.row()
-        zoom.prop(context.window_manager.interface_vars, 'zoom', expand=True)
+        zoom.prop(context.window_manager.b4b, 'zoom', expand=True)
 
         self.layout.operator(Operators.PREVIEW.value[0], text="Preview")
 
@@ -40,10 +40,10 @@ class MainPanel(bpy.types.Panel):
 
         layout.label(text="Render")
         grp = layout.row(align=True)
-        grp.prop(context.scene, 'group_id', text="Grp ID")
+        grp.prop(context.scene.b4b, 'group_id', text="Grp ID")
         grp.operator(Operators.GID_RANDOMIZE.value[0], text='', icon='FILE_REFRESH')
         hd = layout.row()
-        hd.prop(context.scene, 'b4b_hd', expand=True)
+        hd.prop(context.scene.b4b, 'hd', expand=True)
         self.layout.operator(Operators.RENDER.value[0], text="Render all zooms & rotations")
 
 
@@ -59,17 +59,20 @@ class PostProcessPanel(bpy.types.Panel):
 
     def draw_header(self, context):
         layout = self.layout
-        layout.prop(context.scene, 'b4b_postproc_enabled', icon_only=True)
+        layout.prop(context.scene.b4b, 'postproc_enabled', icon_only=True)
 
     def draw(self, context):
         layout = self.layout
         layout.label(text="SC4Model creation")
         row = layout.row()
         row.prop(context.preferences.addons[__package__].preferences, 'fshgen_path', text="fshgen")
-        row.enabled = context.scene.b4b_postproc_enabled
+        row.enabled = context.scene.b4b.postproc_enabled
 
 
-class InterfaceVars(bpy.types.PropertyGroup):
+class B4BWmProps(bpy.types.PropertyGroup):
+    r"""These properties are stored on the WindowManager, so affect all open scenes, but are not persistent.
+    """
+
     # (unique identifier, property name, property description, icon identifier, number)
     rotation: bpy.props.EnumProperty(
         items=[
@@ -87,13 +90,39 @@ class InterfaceVars(bpy.types.PropertyGroup):
             (Zoom.TWO.name, '2', 'zoom 2', '', Zoom.TWO.value),
             (Zoom.THREE.name, '3', 'zoom 3', '', Zoom.THREE.value),
             (Zoom.FOUR.name, '4', 'zoom 4', '', Zoom.FOUR.value),
-            (Zoom.FIVE.name, '5ᴴᴰ' if context.scene.b4b_hd == 'HD' else '5', 'zoom 5', '', Zoom.FIVE.value),
+            (Zoom.FIVE.name, '5ᴴᴰ' if context.scene.b4b.hd == 'HD' else '5', 'zoom 5', '', Zoom.FIVE.value),
         ]),
         default=Zoom.FIVE.value,
     )
 
 
+class B4BSceneProps(bpy.types.PropertyGroup):
+    r"""These properties are persistently stored for each individual Scene in the .blend file.
+    """
+
+    group_id: bpy.props.StringProperty(
+            name="Group ID",
+            description="the Group ID as provided by gmax",
+            default="")
+
+    hd: bpy.props.EnumProperty(
+        items=[
+            ('SD', 'SD', "standard definition", '', 0),
+            ('HD', 'HD', "high definition (doubles zoom 5 resolution)", '', 1),
+        ],
+        default='SD',
+    )
+
+    postproc_enabled: bpy.props.BoolProperty(
+        default=False,
+        name="Post-processing",
+        description="When enabled, create SC4Model after rendering and delete intermediate files",
+    )
+
+
 class B4BPreferences(bpy.types.AddonPreferences):
+    r"""These properties are stored once globally for the Add-on.
+    """
     bl_idname = __package__
 
     fshgen_path: bpy.props.StringProperty(
