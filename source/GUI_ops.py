@@ -60,6 +60,7 @@ class B4BRender(bpy.types.Operator):
     def __init__(self):
         self._cancelled = False
         self._finished = False  # is set after last rendering step or after being cancelled
+        self._exception = None
         self._steps = [(z, v) for z in Zoom for v in Rotation]
         self._step = 0
         self._interval = 0.5  # seconds
@@ -130,7 +131,10 @@ class B4BRender(bpy.types.Operator):
 
     def modal(self, context, event):
         if self._finished:  # (potentially problematic since this is set on another thread)
-            return {'CANCELLED' if self._cancelled else 'FINISHED'}
+            if self._exception:
+                raise self._exception
+            else:
+                return {'CANCELLED' if self._cancelled else 'FINISHED'}
         else:
             return {'PASS_THROUGH'}  # important for render function to be cancelable
 
@@ -148,7 +152,11 @@ class B4BRender(bpy.types.Operator):
             # run next function from execution queue
             if not self._execution_queue.empty() and not self._cancelled and self._step < len(self._steps):
                 f = self._execution_queue.get()
-                f()
+                try:
+                    f()
+                except Exception as e:
+                    self._exception = e
+                    self._cancelled = True
             return self._interval  # calls `execute_queue_loop` again after _interval
 
     def handle_next_step(self):
@@ -166,10 +174,12 @@ class B4BRender(bpy.types.Operator):
         # so slicing rendered image is done later in post processing after rendering finished.
         # Likewise, slicing LODs is done in preprocessing.
         def f():  # executing this delayed seems to be important to avoid deadlocks
+            layer = bpy.context.view_layer  # we choose the active layer for rendering if enabled in 'Use for Rendering', otherwise the default layer
+            kwds = dict(layer=layer.name) if layer.use else {}
             orig_display_type = bpy.context.preferences.view.render_display_type
             try:
                 bpy.context.preferences.view.render_display_type = 'NONE'  # avoid opening new window for each view (instead use Rendering workspace to see result)
-                bpy.ops.render.render('INVOKE_DEFAULT', write_still=True)  # TODO make sure only one layer and scene is rendered
+                bpy.ops.render.render('INVOKE_DEFAULT', write_still=True, **kwds)
             finally:
                 bpy.context.preferences.view.render_display_type = orig_display_type
         self.run_on_main_thread(f)
