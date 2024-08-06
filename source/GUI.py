@@ -86,12 +86,12 @@ class B4BWmProps(bpy.types.PropertyGroup):
     # (unique identifier, property name, property description, icon identifier, number)
     rotation: bpy.props.EnumProperty(
         items=[
-            (Rotation.NORTH.name, 'N', 'North view', '', Rotation.NORTH.value),
-            (Rotation.EAST.name, 'E', 'East view', '', Rotation.EAST.value),
             (Rotation.SOUTH.name, 'S', 'South view', '', Rotation.SOUTH.value),
+            (Rotation.EAST.name, 'E', 'East view', '', Rotation.EAST.value),
+            (Rotation.NORTH.name, 'N', 'North view', '', Rotation.NORTH.value),
             (Rotation.WEST.name, 'W', 'West view', '', Rotation.WEST.value)
         ],
-        default=Rotation.NORTH.name
+        default=Rotation.SOUTH.name
     )
 
     zoom: bpy.props.EnumProperty(
