@@ -7,6 +7,7 @@ from .Camera import Camera
 from .Renderer import Renderer
 from .Utils import blend_file_name
 from bpy.props import StringProperty
+import queue
 
 
 # The OK button in the error dialog
@@ -44,30 +45,134 @@ class MessageOperator(bpy.types.Operator):
 
 
 class B4BRender(bpy.types.Operator):
-    bl_description = r"""Exports LOD .obj files and rendered images. Progress is displayed in system console"""
+    r"""Render all zooms and rotations.
+    The implementation of this operator attempts to avoid blocking the UI, so
+    that progress can be displayed in the UI and the operation can be cancelled
+    by pressing ESC.
+    This introduces some complexity due to the need for timers/threading to
+    distribute the computations between the main UI thread and background
+    computations.
+    """
+    bl_description = r"""Exports LOD .obj files and rendered images"""
     bl_idname = Operators.RENDER.value[0]
     bl_label = "Render all zooms & rotations"
 
-    def execute(self, context):
-        if context.scene.b4b.group_id in ["default", "", None]:
-            bpy.ops.object.b4b_gid_randomize()  # Operators.GID_RANDOMIZE
-        group = context.scene.b4b.group_id
-        model_name = blend_file_name()
-        steps = [(z, v) for z in Zoom for v in Rotation]
-        hd = context.scene.b4b.hd == 'HD'
-        output_files = []
-        for i, (z, v) in enumerate(steps):
-            print(f"Step ({i+1}/{len(steps)}): zoom {z.value+1}, rotation {v.name}")
-            Rig.setup(v, z, hd=hd)
-            output_files.extend(Renderer.generate_output(v, z, group, model_name, hd=hd))
+    def __init__(self):
+        self._cancelled = False
+        self._finished = False  # is set after last rendering step or after being cancelled
+        self._steps = [(z, v) for z in Zoom for v in Rotation]
+        self._step = 0
+        self._interval = 0.5  # seconds
+        self._render_post_args = None
+        self._execution_queue = queue.Queue()
+        self._output_files = []  # is *only* accessed on main thread, so no need for synchronization
+
+    def _post_handler(self, scene, depsgraph):
+        r"""Runs after each rendering call.
+        """
+        def f():
+            z, v = self._steps[self._step]
+            self._output_files.extend(Renderer.render_post(z, v, scene.b4b.group_id, *self._render_post_args))
+            self._render_post_args = None
             print("-" * 60)
+            self._step += 1
+            if not self._cancelled:
+                if self._step < len(self._steps):
+                    self.handle_next_step()
+                else:  # after last step, create SC4Model
+                    context = bpy.context
+                    if context.scene.b4b.postproc_enabled:
+                        context.window_manager.b4b.progress = 100
+                        context.window_manager.b4b.progress_label = "Creating SC4Model file"
+                        fshgen_script = context.preferences.addons[__package__].preferences.fshgen_path or "fshgen"
+                        model_name = blend_file_name()
+                        Renderer.create_sc4model(fshgen_script,
+                                                 self._output_files,
+                                                 name=model_name,
+                                                 gid=context.scene.b4b.group_id,
+                                                 delete=True)
 
-        if context.scene.b4b.postproc_enabled:
-            fshgen_script = context.preferences.addons[__package__].preferences.fshgen_path or "fshgen"
-            Renderer.create_sc4model(fshgen_script, output_files, name=model_name, gid=group, delete=True)
+        self.run_on_main_thread(f)
 
-        print("FINISHED")
-        return {"FINISHED"}
+    def _cancel_handler(self, scene, depsgraph):
+        print("Rendering was cancelled.")
+        def f():
+            self._cancelled = True
+        self.run_on_main_thread(f)
+
+    # can be called on other threads, see https://docs.blender.org/api/current/bpy.app.timers.html#use-a-timer-to-react-to-events-in-another-thread
+    def run_on_main_thread(self, function):
+        self._execution_queue.put(function)
+
+    def execute(self, context):
+        if context.window_manager.b4b.is_rendering:
+            print("A rendering operation is already in progress.")
+            return {'FINISHED'}
+        context.window_manager.b4b.is_rendering = True
+
+        if context.scene.b4b.group_id in ["default", "", None]:  # GID is only generated once
+            bpy.ops.object.b4b_gid_randomize()  # Operators.GID_RANDOMIZE
+
+        bpy.app.handlers.render_post.append(self._post_handler)
+        bpy.app.handlers.render_cancel.append(self._cancel_handler)
+        context.window_manager.modal_handler_add(self)
+        self.run_on_main_thread(self.handle_next_step)
+        bpy.app.timers.register(self.execute_queue_loop)
+
+        return {'RUNNING_MODAL'}
+
+    def _redraw_properties_panel(self):
+        for window in bpy.context.window_manager.windows:
+            for area in window.screen.areas:
+                if area.type == 'PROPERTIES':
+                    area.tag_redraw()
+                    break
+
+    def modal(self, context, event):
+        if self._finished:  # (potentially problematic since this is set on another thread)
+            return {'CANCELLED' if self._cancelled else 'FINISHED'}
+        else:
+            return {'PASS_THROUGH'}  # important for render function to be cancelable
+
+    def execute_queue_loop(self):
+        if self._cancelled or self._step >= len(self._steps):
+            # cleanup, then finish
+            bpy.app.handlers.render_post.remove(self._post_handler)
+            bpy.app.handlers.render_cancel.remove(self._cancel_handler)
+            print('CANCELLED' if self._cancelled else 'FINISHED')
+            self._finished = True
+            bpy.context.window_manager.b4b.is_rendering = False
+            self._redraw_properties_panel()  # redraw to show Render button instead of progress bar again
+            return None  # timer finishes and is unregistered
+        else:
+            # run next function from execution queue
+            if not self._execution_queue.empty() and not self._cancelled and self._step < len(self._steps):
+                f = self._execution_queue.get()
+                f()
+            return self._interval  # calls `execute_queue_loop` again after _interval
+
+    def handle_next_step(self):
+        context = bpy.context
+        z, v = self._steps[self._step]
+        print(f"Step ({self._step+1}/{len(self._steps)}): Zoom {z.value+1} {v.name}")
+        context.window_manager.b4b.progress = 100 * self._step / len(self._steps)  # TODO consider non-linearity
+        context.window_manager.b4b.progress_label = f"({self._step+1}/{len(self._steps)}) Zoom {z.value+1} {v.name}"
+        model_name = blend_file_name()
+        hd = context.scene.b4b.hd == 'HD'
+        Rig.setup(v, z, hd=hd)
+        self._render_post_args = Renderer.render_pre(z, v, context.scene.b4b.group_id, model_name, hd=hd)
+
+        # The following render call returns immediately *before* rendering finished,
+        # so slicing rendered image is done later in post processing after rendering finished.
+        # Likewise, slicing LODs is done in preprocessing.
+        def f():  # executing this delayed seems to be important to avoid deadlocks
+            orig_display_type = bpy.context.preferences.view.render_display_type
+            try:
+                bpy.context.preferences.view.render_display_type = 'NONE'  # avoid opening new window for each view (instead use Rendering workspace to see result)
+                bpy.ops.render.render('INVOKE_DEFAULT', write_still=True)  # TODO make sure only one layer and scene is rendered
+            finally:
+                bpy.context.preferences.view.render_display_type = orig_display_type
+        self.run_on_main_thread(f)
 
 
 class B4BPreview(bpy.types.Operator):

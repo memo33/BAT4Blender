@@ -46,7 +46,15 @@ class MainPanel(bpy.types.Panel):
         grp.operator(Operators.GID_RANDOMIZE.value[0], text='', icon='FILE_REFRESH')
         hd = layout.row()
         hd.prop(context.scene.b4b, 'hd', expand=True)
-        self.layout.operator(Operators.RENDER.value[0])
+        if not context.window_manager.b4b.is_rendering:
+            self.layout.operator(Operators.RENDER.value[0])
+        else:
+            progress_bar = layout.row(align=True)
+            # progress_bar.enabled = False
+            progress_bar.prop(context.window_manager.b4b, 'progress')
+            label = layout.row()
+            label.active = False
+            label.label(text=context.window_manager.b4b.progress_label)
 
 
 class PostProcessPanel(bpy.types.Panel):
@@ -96,6 +104,10 @@ class B4BWmProps(bpy.types.PropertyGroup):
         ]),
         default=Zoom.FIVE.value,
     )
+
+    is_rendering: bpy.props.BoolProperty(default=False, name="Render In Progress")
+    progress: bpy.props.FloatProperty(name="Progress", subtype='PERCENTAGE', soft_min=0, soft_max=100, precision=0)
+    progress_label: bpy.props.StringProperty()
 
 
 class B4BSceneProps(bpy.types.PropertyGroup):

@@ -4,7 +4,7 @@ import bpy
 from mathutils import Vector
 from .Config import LODZ_NAME, CAM_NAME
 from .Utils import tgi_formatter, get_relative_path_for, translate, instance_id, b4b_collection, find_object
-from .Enums import Zoom
+from .Enums import Zoom, Rotation
 from .Canvas import Canvas
 from pathlib import Path
 
@@ -41,11 +41,11 @@ class Renderer:
     #     links.new(rl.outputs[0], v.inputs[0])  # link Image output to Viewer input
 
     @staticmethod
-    def generate_output(v, z, gid, model_name: str, hd: bool):
-        r"""Export LODs and render images and yield generated .obj and .png files.
+    def render_pre(z: Zoom, v: Rotation, gid, model_name: str, hd: bool):
+        r"""This function is invoked by the modal operator before the rendering of this view started.
+        We do some setup such as slicing and exporting the LODs.
         """
         from .LOD import LOD
-        import numpy as np
         bpy.context.scene.render.image_settings.file_format = 'PNG'
         bpy.context.scene.render.image_settings.color_mode = 'RGBA'
         bpy.context.scene.render.film_transparent = True
@@ -81,22 +81,33 @@ class Renderer:
             bpy.data.meshes.remove(lod_slice.data)
         for mat in materials:
             bpy.data.materials.remove(mat)
-        yield obj_path
 
         # Render the full image to a temporary location
         bpy.context.scene.render.use_border = False  # always render the full frame
         tmp_path = get_relative_path_for(f"{tgi_formatter(gid, z.value, v.value, 0)}.tmp.png")
         bpy.context.scene.render.filepath = tmp_path
         print(f"Rendering image ({canvas.width_px}×{canvas.height_px})")
-        bpy.ops.render.render(write_still=True)
+        return canvas, tile_indices_nonempty, tmp_path, obj_path
 
+    @staticmethod
+    def render_post(z: Zoom, v: Rotation, gid, canvas: Canvas, tile_indices_nonempty: list[(int, int)], tmp_path: str, obj_path: str):
+        r"""This function is invoked by the modal operator after the rendering of this view finished,
+        and yields the generated output files.
+        We slice the rendered image here.
+        """
+        import numpy as np
+        import os
+        from pathlib import Path
+        if not Path(tmp_path).is_file():
+            return  # this can happen when rendering was cancelled
+        yield obj_path
         img = bpy.data.images.load(tmp_path)
         try:
             assert tuple(img.size) == (canvas.width_px, canvas.height_px), \
                     f"Rendered image has unexpected size: {tuple(img.size)} instead of {canvas.width_px}×{canvas.height_px}"
             arr = np.asarray(img.pixels).reshape((img.size[1], img.size[0], img.channels))
 
-            # Next, slice the image into 256×256 tiles.
+            # Slice the image into 256×256 tiles.
             # Slicing *after* rendering (as opposed to rendering individual 256×256 regions) has advantages when a denoising filter is applied.
             # Otherwise, the denoising filter would lead to visible artifacts at the borders of the 256×256 tiles, preventing a seamless appearance.
             for count, (row, col) in enumerate(tile_indices_nonempty):

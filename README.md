@@ -28,5 +28,5 @@ Notes
 - [x] conversion of LODs to S3D: Using [fshgen](https://github.com/memo33/fshgen/releases):
   ```
   fshgen import -o output.SC4Model --force --with-BAT-models --format Dxt1 --gid 0xffffffff *.obj *.png
-  ```    
-- [ ] showing progress while rendering: https://blender.stackexchange.com/a/71830
+  ```
+- [x] showing progress while rendering: Go to the Rendering workspace to see the current image. Press ESC to cancel rendering.
