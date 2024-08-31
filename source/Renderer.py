@@ -214,11 +214,11 @@ class Renderer:
     def create_sc4model(fshgen_script: str, files: list[str], name: str, gid: str, delete: bool):
         import subprocess
         tgi = tgi_formatter(gid, 0, 0, 0, is_model=True, prefix=True)
-        sc4model = f"{name}-{tgi}.SC4Model"
-        print(f"Using fshgen to create SC4Model: {sc4model}")
+        sc4model_path = get_relative_path_for(f"{name}-{tgi}.SC4Model")
+        print(f"Using fshgen to create SC4Model: {sc4model_path}")
         result = subprocess.run([
             fshgen_script, "import",
-            "-o", sc4model,
+            "--output", sc4model_path,
             "--force",
             "--with-BAT-models",
             "--format", "Dxt1",
