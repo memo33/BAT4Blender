@@ -70,7 +70,7 @@ class Renderer:
         stem = tgi_formatter(gid, z.value, v.value, 0, is_model=True)
         obj_path = get_relative_path_for(f"{stem}.obj")
         mtl_path = get_relative_path_for(f"{stem}.mtl")
-        LOD.export([lod_slices[pos] for pos in tile_indices_nonempty], obj_path, v)
+        LOD.export([lod_slices[pos] for pos in tile_indices_nonempty], obj_path, v) #broken in Blender 4.X - in render_pre LOD.export
         try:
             # .obj export creates .mtl material files that are not needed
             Path(mtl_path).unlink(missing_ok=True)

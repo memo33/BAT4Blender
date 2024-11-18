@@ -98,7 +98,7 @@ class LOD:
         r"""Export a list of sliced LOD objects as a single .obj file"""
         with bpy.context.temp_override(selected_objects=lod_objects):
             # In Blender 4+, bpy.ops.wm.obj_export can be used instead, but arguments differ
-            bpy.ops.export_scene.obj(
+            bpy.ops.export_scene.obj( #broken in Blender 4.X - export - Note This error trigger another error in ops.py in line 109 (ret = _op_call(self.idname_py(), kw))
                 filepath=filepath,
                 check_existing=False,
                 axis_up='Y',

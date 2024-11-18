@@ -153,7 +153,7 @@ class B4BRender(bpy.types.Operator):
             if not self._execution_queue.empty() and not self._cancelled and self._step < len(self._steps):
                 f = self._execution_queue.get()
                 try:
-                    f()
+                    f() #broken in Blender 4.X - Execute_queue_loop
                 except Exception as e:
                     self._exception = e
                     self._cancelled = True
