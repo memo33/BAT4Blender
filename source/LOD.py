@@ -96,23 +96,44 @@ class LOD:
     @staticmethod
     def export(lod_objects, filepath: str, rotation: Rotation):
         r"""Export a list of sliced LOD objects as a single .obj file"""
-        with bpy.context.temp_override(selected_objects=lod_objects):
-            # In Blender 4+, bpy.ops.wm.obj_export can be used instead, but arguments differ
-            bpy.ops.export_scene.obj(
-                filepath=filepath,
-                check_existing=False,
-                axis_up='Y',
-                axis_forward=(
-                    '-Z' if rotation == Rotation.SOUTH else
-                    'X' if rotation == Rotation.EAST else
-                    'Z' if rotation == Rotation.NORTH else
-                    '-X'),  # WEST
-                use_selection=True,
-                use_materials=True,  # only needed for preserving the material name
-                use_triangles=True,
-            )
-        # else:
-        #     print("there is no LOD to export!")
+        if bpy.app.version >= (4, 0, 0):  # Blender 4+
+            # Exporting a selection of objects seems to be broken with this operator, so we define a temporary collection instead,
+            # see https://blender.stackexchange.com/questions/317191/exporting-object-with-bpy-ops-wm-obj-export
+            coll = bpy.data.collections.new('b4b_temp_lod_export')
+            try:
+                for ob in lod_objects:
+                    coll.objects.link(ob)
+                bpy.ops.wm.obj_export(
+                    filepath=filepath,
+                    check_existing=False,
+                    up_axis='Y',
+                    forward_axis=(
+                        'NEGATIVE_Z' if rotation == Rotation.SOUTH else
+                        'X' if rotation == Rotation.EAST else
+                        'Z' if rotation == Rotation.NORTH else
+                        'NEGATIVE_X'),
+                    export_materials=True,  # only needed for preserving the material name
+                    export_triangulated_mesh=True,
+                    collection=coll.name,
+                )
+            finally:
+                bpy.data.collections.remove(coll)
+
+        else:  # Blender 3.6
+            with bpy.context.temp_override(selected_objects=lod_objects):
+                bpy.ops.export_scene.obj(
+                    filepath=filepath,
+                    check_existing=False,
+                    axis_up='Y',
+                    axis_forward=(
+                        '-Z' if rotation == Rotation.SOUTH else
+                        'X' if rotation == Rotation.EAST else
+                        'Z' if rotation == Rotation.NORTH else
+                        '-X'),  # WEST
+                    use_materials=True,  # only needed for preserving the material name
+                    use_triangles=True,
+                    use_selection=True,
+                )
 
     @staticmethod
     def _copy_bmesh_with_face_filter(mesh: bmesh.types.BMesh, name: str, face_filter) -> bpy.types.Mesh:
