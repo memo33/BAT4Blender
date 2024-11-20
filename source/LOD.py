@@ -96,7 +96,7 @@ class LOD:
     @staticmethod
     def export(lod_objects, filepath: str, rotation: Rotation):
         r"""Export a list of sliced LOD objects as a single .obj file"""
-        if bpy.app.version >= (4, 0, 0):  # Blender 4+
+        if bpy.app.version >= (4, 2, 0):  # Blender 4.2+
             # Exporting a selection of objects seems to be broken with this operator, so we define a temporary collection instead,
             # see https://blender.stackexchange.com/questions/317191/exporting-object-with-bpy-ops-wm-obj-export
             coll = bpy.data.collections.new('b4b_temp_lod_export')
@@ -119,7 +119,7 @@ class LOD:
             finally:
                 bpy.data.collections.remove(coll)
 
-        else:  # Blender 3.6
+        elif bpy.app.version < (4, 0, 0):  # Blender 3.6
             with bpy.context.temp_override(selected_objects=lod_objects):
                 bpy.ops.export_scene.obj(
                     filepath=filepath,
@@ -134,6 +134,9 @@ class LOD:
                     use_triangles=True,
                     use_selection=True,
                 )
+
+        else:
+            raise AssertionError(f"Unsupported Blender version ({bpy.app.version_string}). Install Blender 3.6 or 4.2+ instead.")
 
     @staticmethod
     def _copy_bmesh_with_face_filter(mesh: bmesh.types.BMesh, name: str, face_filter) -> bpy.types.Mesh:

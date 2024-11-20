@@ -1,6 +1,6 @@
 # BAT4Blender
 
-(tested with Blender 3.6)
+(tested with Blender 3.6 and 4.2+)
 
 ## Installing the Add-on
 The general gist of it is as follows.
