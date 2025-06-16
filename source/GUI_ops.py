@@ -57,7 +57,8 @@ class B4BRender(bpy.types.Operator):
     bl_idname = Operators.RENDER.value[0]
     bl_label = "Render all zooms & rotations"
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self._cancelled = False
         self._finished = False  # is set after last rendering step or after being cancelled
         self._exception = None
