@@ -181,6 +181,7 @@ class Renderer:
     def offset_camera(cam, lod, dim_x, dim_y):
         r"""Position the camera such that the LOD is aligned with the top and
         left edges of the rendered image, accounting for the slop margin.
+        Also move the camera further away from the origin to put the whole LOD into view.
         """
         from .Camera import Camera
         cam.data.shift_x = 0.0
@@ -197,6 +198,10 @@ class Renderer:
         y_d = translate(y_top - (dim_y - _SLOP), 0, dim_y, 0.0, dim_y / max(dim_x, dim_y))
         cam.data.shift_x = x_d
         cam.data.shift_y = y_d
+
+        distance = Camera.distance_from_lod(cam, lod)
+        extra_camera_offset = 80  # distance to keep between camera and lod
+        cam.location = cam.location * ((cam.location.length - distance + extra_camera_offset) / cam.location.length)
 
     @staticmethod
     def get_orthographic_scale(dg, cam, lod):

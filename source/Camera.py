@@ -5,7 +5,7 @@ from .Config import CAM_NAME
 from .Enums import Zoom, Rotation
 from .Utils import b4b_collection, find_object
 
-camera_range = 190  # distance of camera from origin
+camera_range = 190  # (initial) distance of camera from origin
 angle_zoom = [radians(60), radians(55), radians(50), radians(45)]
 angle_rotation = [radians(-67.5), radians(22.5), radians(112.5), radians(202.5)]
 
@@ -69,13 +69,24 @@ class Camera:
             override['region'].data.update()  # updates the matrices so that the change of view takes affect immediately
 
     @staticmethod
+    def _lod_in_cam_coords(cam, lod):
+        xyz_coords = (lod.matrix_world @ v.co for v in lod.data.vertices)
+        uvw_coords = [bpy_extras.object_utils.world_to_camera_view(bpy.context.scene, cam, c) for c in xyz_coords]
+        return uvw_coords
+
+    @staticmethod
     def lod_bounds_LRTB(cam, lod) -> (float, float, float, float):
         r"""Determine the bounding rectangle of the LOD in camera view.
         """
-        xyz_coords = (lod.matrix_world @ v.co for v in lod.data.vertices)
-        uv_coords = [bpy_extras.object_utils.world_to_camera_view(bpy.context.scene, cam, c) for c in xyz_coords]
+        uv_coords = Camera._lod_in_cam_coords(cam, lod)
         u_min = min(c[0] for c in uv_coords)
         u_max = max(c[0] for c in uv_coords)
         v_min = min(c[1] for c in uv_coords)
         v_max = max(c[1] for c in uv_coords)
         return u_min, u_max, v_max, v_min
+
+    @staticmethod
+    def distance_from_lod(cam, lod) -> float:
+        r"""If negative, the camera needs to be moved back to fully put the LOD in view."""
+        uvw_coords = Camera._lod_in_cam_coords(cam, lod)
+        return min(c[2] for c in uvw_coords)
