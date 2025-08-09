@@ -41,7 +41,7 @@ class Renderer:
     #     links.new(rl.outputs[0], v.inputs[0])  # link Image output to Viewer input
 
     @staticmethod
-    def render_pre(z: Zoom, v: Rotation, gid, model_name: str, hd: bool):
+    def render_pre(z: Zoom, v: Rotation, gid, model_name: str, hd: bool, supersampling: bool, magick_exe):
         r"""This function is invoked by the modal operator before the rendering of this view started.
         We do some setup such as slicing and exporting the LODs.
         """
@@ -50,7 +50,7 @@ class Renderer:
         bpy.context.scene.render.image_settings.color_mode = 'RGBA'
         bpy.context.scene.render.film_transparent = True
         # First, position the camera for the current zoom and rotation. TODO Why does this not use v?
-        canvas = Renderer.camera_manoeuvring(z, hd=hd)
+        canvas = Renderer.camera_manoeuvring(z, hd=hd, supersampling=supersampling)
         coll = b4b_collection()
         cam = find_object(coll, CAM_NAME)
         lod = find_object(coll, LODZ_NAME[z.value])
@@ -84,24 +84,28 @@ class Renderer:
 
         # Render the full image to a temporary location
         bpy.context.scene.render.use_border = False  # always render the full frame
-        tmp_path = get_relative_path_for(f"{tgi_formatter(gid, z.value, v.value, 0)}.tmp.png")
-        bpy.context.scene.render.filepath = tmp_path
-        print(f"Rendering image ({canvas.width_px}×{canvas.height_px})")
-        return canvas, tile_indices_nonempty, tmp_path, obj_path
+        tmp_png_path = get_relative_path_for(f"{tgi_formatter(gid, z.value, v.value, 0)}.tmp.png")
+        bpy.context.scene.render.filepath = tmp_png_path
+        print(f"Rendering image ({bpy.context.scene.render.resolution_x}×{bpy.context.scene.render.resolution_y}, supersampling={supersampling})")
+        return canvas, tile_indices_nonempty, tmp_png_path, obj_path, supersampling, magick_exe
 
     @staticmethod
-    def render_post(z: Zoom, v: Rotation, gid, canvas: Canvas, tile_indices_nonempty: list[(int, int)], tmp_path: str, obj_path: str):
+    def render_post(z: Zoom, v: Rotation, gid, canvas: Canvas, tile_indices_nonempty: list[(int, int)], tmp_png_path: str, obj_path: str, supersampling: bool, magick_exe):
         r"""This function is invoked by the modal operator after the rendering of this view finished,
         and yields the generated output files.
         We slice the rendered image here.
         """
         import numpy as np
-        import os
         from pathlib import Path
-        if not Path(tmp_path).is_file():
+        if not Path(tmp_png_path).is_file():
             return  # this can happen when rendering was cancelled
         yield obj_path
-        img = bpy.data.images.load(tmp_path)
+        if supersampling:
+            downsampled_tmp_png_path = get_relative_path_for(f"{tgi_formatter(gid, z.value, v.value, 0)}_downsampled.tmp.png")
+            Renderer.downsample_image(magick_exe, tmp_png_path, downsampled_tmp_png_path, filter_name="MagicKernelSharp2021")
+        else:
+            downsampled_tmp_png_path = None
+        img = bpy.data.images.load(downsampled_tmp_png_path if supersampling else tmp_png_path)
         try:
             assert tuple(img.size) == (canvas.width_px, canvas.height_px), \
                     f"Rendered image has unexpected size: {tuple(img.size)} instead of {canvas.width_px}×{canvas.height_px}"
@@ -126,24 +130,27 @@ class Renderer:
 
         finally:
             bpy.data.images.remove(img)
-            try:
-                Path(tmp_path).unlink(missing_ok=True)
-            except IOError:
-                pass  # ignored
+            for p in [tmp_png_path, downsampled_tmp_png_path]:
+                if p is not None:
+                    try:
+                        Path(p).unlink(missing_ok=True)
+                    except IOError:
+                        pass  # ignored
 
     @staticmethod
-    def generate_preview(zoom: Zoom, hd: bool):
-        Renderer.camera_manoeuvring(zoom, hd=hd)
+    def generate_preview(zoom: Zoom, hd: bool, supersampling: bool):
+        Renderer.camera_manoeuvring(zoom, hd=hd, supersampling=supersampling)
         #  reset camera border in case a large view has been rendered.. may want to do this after rendering instead
         bpy.context.scene.render.border_min_x = 0.0
         bpy.context.scene.render.border_max_x = 1.0
         bpy.context.scene.render.border_min_y = 0.0
         bpy.context.scene.render.border_max_y = 1.0
         bpy.context.scene.render.film_transparent = True
+        print(f"Rendering image ({bpy.context.scene.render.resolution_x}×{bpy.context.scene.render.resolution_y}, supersampling={supersampling})")
         bpy.ops.render.render('INVOKE_DEFAULT', write_still=False)
 
     @staticmethod
-    def camera_manoeuvring(zoom: Zoom, hd: bool) -> Canvas:
+    def camera_manoeuvring(zoom: Zoom, hd: bool, supersampling: bool) -> Canvas:
         r"""Adjust the offset, orthographic scale and resolution of the current
         camera so that the LOD fits into view, including a margin, and such
         that the orthographic scale results in a pixel-perfect display of the
@@ -157,7 +164,7 @@ class Renderer:
         depsgraph = bpy.context.evaluated_depsgraph_get()
         bpy.context.scene.camera = cam  # apparently invoke default also checks if the scene has a camera..?
 
-        # We use a 16×16 cell centered at origin as reference.
+        # We use a 16m × 16m cell centered at origin as reference.
         # Its rendered (horizontal) dimension is zoom_sizes[zoom.value] in pixels.
         # Hence
         #   os_reference : zoom_sizes[zoom.value] == os_lod : dim_lod
@@ -170,15 +177,16 @@ class Renderer:
 
         # Adjustment of the orthographic scale to account for the added slop margin and the rounding to integer resolutions:
         cam.data.ortho_scale *= max(canvas.width_px, canvas.height_px) / dim_lod
-        bpy.context.scene.render.resolution_x = canvas.width_px
-        bpy.context.scene.render.resolution_y = canvas.height_px
-        Renderer.offset_camera(cam, lod, canvas.width_px, canvas.height_px)
+        supersampling_factor = 2 if supersampling else 1
+        bpy.context.scene.render.resolution_x = canvas.width_px * supersampling_factor
+        bpy.context.scene.render.resolution_y = canvas.height_px * supersampling_factor
+        Renderer.offset_camera(cam, lod, canvas.width_px, canvas.height_px, margin=_SLOP)
 
         print(f"Output dimensions are {canvas.width_px}×{canvas.height_px}")
         return canvas
 
     @staticmethod
-    def offset_camera(cam, lod, dim_x, dim_y):
+    def offset_camera(cam, lod, dim_x, dim_y, margin: int):
         r"""Position the camera such that the LOD is aligned with the top and
         left edges of the rendered image, accounting for the slop margin.
         Also move the camera further away from the origin to put the whole LOD into view.
@@ -194,8 +202,8 @@ class Renderer:
         x_left = x_min * dim_x
         y_top = y_max * dim_y
 
-        x_d = translate(x_left - _SLOP, 0, dim_x, 0.0, dim_x / max(dim_x, dim_y))
-        y_d = translate(y_top - (dim_y - _SLOP), 0, dim_y, 0.0, dim_y / max(dim_x, dim_y))
+        x_d = translate(x_left - margin, 0, dim_x, 0.0, dim_x / max(dim_x, dim_y))
+        y_d = translate(y_top - (dim_y - margin), 0, dim_y, 0.0, dim_y / max(dim_x, dim_y))
         cam.data.shift_x = x_d
         cam.data.shift_y = y_d
 
@@ -236,3 +244,17 @@ class Renderer:
                     Path(f).unlink(missing_ok=True)
                 except IOError:
                     pass  # ignored
+
+    @staticmethod
+    def downsample_image(magick_exe: str, input_path: str, output_path: str, filter_name: str):
+        import subprocess
+        print(f"""Using ImageMagick filter "{filter_name}" to downsample rendering: {input_path}""")
+        result = subprocess.run([
+            magick_exe,
+            input_path,
+            "-colorspace", "RGB",  # switch to linear space
+            "-filter", filter_name, "-resize", "50%",
+            "-colorspace", "sRGB",  # switch back to gamma space
+            output_path,
+        ])
+        assert result.returncode == 0  # otherwise previous command would have raised

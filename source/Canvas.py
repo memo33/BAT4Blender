@@ -8,7 +8,6 @@ from mathutils import Vector
 
 _MAX_TILE_SIZE_PX = 256
 _MIN_TILE_SIZE_PX = 4
-_SLOP = 3
 
 
 class Canvas:

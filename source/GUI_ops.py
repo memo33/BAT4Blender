@@ -173,7 +173,9 @@ class B4BRender(bpy.types.Operator):
         model_name = blend_file_name()
         hd = context.scene.b4b.hd == 'HD'
         Rig.setup(v, z, hd=hd)
-        self._render_post_args = Renderer.render_pre(z, v, context.scene.b4b.group_id, model_name, hd=hd)
+        supersampling = context.scene.b4b.supersampling_enabled
+        magick_exe = None if not supersampling else (context.preferences.addons[__package__].preferences.imagemagick_path or "magick")
+        self._render_post_args = Renderer.render_pre(z, v, context.scene.b4b.group_id, model_name, hd=hd, supersampling=supersampling, magick_exe=magick_exe)
 
         # The following render call returns immediately *before* rendering finished,
         # so slicing rendered image is done later in post processing after rendering finished.
@@ -201,7 +203,7 @@ class B4BPreview(bpy.types.Operator):
         hd = context.scene.b4b.hd == 'HD'
         Rig.setup(v, z, hd=hd)
         # q: pass the context to the renderer? or just grab it from internals..
-        Renderer.generate_preview(z, hd=hd)
+        Renderer.generate_preview(z, hd=hd, supersampling=context.scene.b4b.supersampling_enabled)
         return {'FINISHED'}
 
 
