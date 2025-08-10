@@ -62,7 +62,11 @@ class B4BRender(bpy.types.Operator):
         self._cancelled = False
         self._finished = False  # is set after last rendering step or after being cancelled
         self._exception = None
-        self._steps = [(z, v) for z in Zoom for v in Rotation]
+        context = bpy.context
+        if context.scene.b4b.render_current_view_only:
+            self._steps = [(Zoom[context.window_manager.b4b.zoom], Rotation[context.window_manager.b4b.rotation])]
+        else:
+            self._steps = [(z, v) for z in Zoom for v in Rotation]
         self._step = 0
         self._interval = 0.5  # seconds
         self._render_post_args = None

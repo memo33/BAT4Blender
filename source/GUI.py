@@ -1,5 +1,6 @@
 import bpy
 from .Enums import Operators, Rotation, Zoom
+from .GUI_ops import B4BRender
 
 
 class MainPanel(bpy.types.Panel):
@@ -47,7 +48,9 @@ class MainPanel(bpy.types.Panel):
         hd = layout.row()
         hd.prop(context.scene.b4b, 'hd', expand=True)
         if not context.window_manager.b4b.is_rendering:
-            self.layout.operator(Operators.RENDER.value[0])
+            text = (B4BRender.bl_label if not context.scene.b4b.render_current_view_only
+                    else f"Render only zoom {z.value+1} {Rotation[context.window_manager.b4b.rotation].compass_name()}  (see {AdvancedPanel.bl_label})")
+            self.layout.operator(Operators.RENDER.value[0], text=text)
         else:
             progress_bar = layout.row(align=True)
             # progress_bar.enabled = False
@@ -77,6 +80,22 @@ class PostProcessPanel(bpy.types.Panel):
         row = layout.row()
         row.prop(context.preferences.addons[__package__].preferences, 'fshgen_path', text="fshgen")
         row.enabled = context.scene.b4b.postproc_enabled
+
+
+class AdvancedPanel(bpy.types.Panel):
+    """A subpanel for BAT4Blender scene context of the properties editor"""
+    bl_label = "Advanced"
+    bl_idname = 'SCENE_PT_b4b_advanced'
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = 'scene'
+    bl_parent_id = 'SCENE_PT_b4b_layout'
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        layout = self.layout
+        row = layout.row()
+        row.prop(context.scene.b4b, 'render_current_view_only')
 
 
 class B4BWmProps(bpy.types.PropertyGroup):
@@ -131,6 +150,12 @@ class B4BSceneProps(bpy.types.PropertyGroup):
         default=False,
         name="Post-Processing",
         description="When enabled, create SC4Model after rendering and delete intermediate files",
+    )
+
+    render_current_view_only: bpy.props.BoolProperty(
+        default=False,
+        name="Render current view only (for debugging)",
+        description="When enabled, only the current Zoom and Rotation is rendered and exported",
     )
 
 
