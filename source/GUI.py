@@ -76,10 +76,15 @@ class SuperSamplingPanel(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.label(text="Down-Sampling")
-        row = layout.row()
-        row.prop(context.preferences.addons[__package__].preferences, 'imagemagick_path', text="ImageMagick")
-        row.enabled = context.scene.b4b.supersampling_enabled
+        downsampling = layout.row()
+        downsampling.prop(context.scene.b4b, 'downsampling_filter', expand=False)
+        downsampling.enabled = context.scene.b4b.supersampling_enabled
+        path = layout.row()
+        path.prop(context.preferences.addons[__package__].preferences, 'imagemagick_path', text="ImageMagick")
+        path.enabled = context.scene.b4b.supersampling_enabled
+        preview = layout.row()
+        preview.prop(context.scene.b4b, 'supersampling_preview', expand=False)
+        preview.enabled = context.scene.b4b.supersampling_enabled
 
 
 class PostProcessPanel(bpy.types.Panel):
@@ -169,9 +174,29 @@ class B4BSceneProps(bpy.types.PropertyGroup):
     )
 
     supersampling_enabled: bpy.props.BoolProperty(
-        default=False,
+        default=True,
         name="Super-Sampling",
         description="When enabled, render at 2× resolution for sharper results. In turn, you may reduce the Max Samples down to 25 % or increase the Noise Threshold",
+    )
+
+    supersampling_preview: bpy.props.EnumProperty(
+        items=[
+            ('no_supersampling', "1× resolution (no super-sampling)", "Disable super-sampling for Preview renders", '', 0),
+            ('no_downsampling', "keep 2× resolution (no down-sampling)", "Keep the super-sampled Preview rendendering", '', 1),
+        ],
+        default='no_supersampling',
+        name="Preview",
+        description="Super-sampling setting for Preview renders",
+    )
+
+    downsampling_filter: bpy.props.EnumProperty(
+        items=[
+            ('MagicKernelSharp2021', "Magic Kernel Sharp 2021", "Sharp, but slightly more artifacts than Catmull-Rom", '', 0),
+            ('CatRom', "Catmull-Rom", "Slightly smoother than Magic Kernel Sharp 2021", '', 1),
+        ],
+        default='MagicKernelSharp2021',
+        name="Down-Sampling",
+        description="Filter for down-scaling the high-res image",
     )
 
     postproc_enabled: bpy.props.BoolProperty(

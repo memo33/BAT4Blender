@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import bpy
 from mathutils import Vector
+from pathlib import Path
+from dataclasses import dataclass, field
 from .Config import LODZ_NAME, CAM_NAME
 from .Utils import tgi_formatter, get_relative_path_for, translate, instance_id, b4b_collection, find_object
 from .Enums import Zoom, Rotation
 from .Canvas import Canvas
-from pathlib import Path
 
 # sd default
 zoom_sizes = [8, 16, 32, 73, 146]  # from SFCameraRigHD.ms (horizontal extent of 16×16 cell in pixels)
@@ -41,7 +42,7 @@ class Renderer:
     #     links.new(rl.outputs[0], v.inputs[0])  # link Image output to Viewer input
 
     @staticmethod
-    def render_pre(z: Zoom, v: Rotation, gid, model_name: str, hd: bool, supersampling: bool, magick_exe):
+    def render_pre(z: Zoom, v: Rotation, gid, model_name: str, hd: bool, supersampling: SuperSampling):
         r"""This function is invoked by the modal operator before the rendering of this view started.
         We do some setup such as slicing and exporting the LODs.
         """
@@ -86,11 +87,11 @@ class Renderer:
         bpy.context.scene.render.use_border = False  # always render the full frame
         tmp_png_path = get_relative_path_for(f"{tgi_formatter(gid, z.value, v.value, 0)}.tmp.png")
         bpy.context.scene.render.filepath = tmp_png_path
-        print(f"Rendering image ({bpy.context.scene.render.resolution_x}×{bpy.context.scene.render.resolution_y}, supersampling={supersampling})")
-        return canvas, tile_indices_nonempty, tmp_png_path, obj_path, supersampling, magick_exe
+        print(f"Rendering image ({bpy.context.scene.render.resolution_x}×{bpy.context.scene.render.resolution_y}, supersampling={supersampling.enabled})")
+        return canvas, tile_indices_nonempty, tmp_png_path, obj_path, supersampling
 
     @staticmethod
-    def render_post(z: Zoom, v: Rotation, gid, canvas: Canvas, tile_indices_nonempty: list[(int, int)], tmp_png_path: str, obj_path: str, supersampling: bool, magick_exe):
+    def render_post(z: Zoom, v: Rotation, gid, canvas: Canvas, tile_indices_nonempty: list[(int, int)], tmp_png_path: str, obj_path: str, supersampling: SuperSampling):
         r"""This function is invoked by the modal operator after the rendering of this view finished,
         and yields the generated output files.
         We slice the rendered image here.
@@ -100,12 +101,14 @@ class Renderer:
         if not Path(tmp_png_path).is_file():
             return  # this can happen when rendering was cancelled
         yield obj_path
-        if supersampling:
+        if supersampling.enabled:
             downsampled_tmp_png_path = get_relative_path_for(f"{tgi_formatter(gid, z.value, v.value, 0)}_downsampled.tmp.png")
-            Renderer.downsample_image(magick_exe, tmp_png_path, downsampled_tmp_png_path, filter_name="MagicKernelSharp2021")
+            assert supersampling.magick_exe, """Location for "magick" executable not set"""
+            assert supersampling.downsampling_filter, "Down-sampling filter not set"
+            Renderer.downsample_image(supersampling.magick_exe, tmp_png_path, downsampled_tmp_png_path, filter_name=supersampling.downsampling_filter)
         else:
             downsampled_tmp_png_path = None
-        img = bpy.data.images.load(downsampled_tmp_png_path if supersampling else tmp_png_path)
+        img = bpy.data.images.load(downsampled_tmp_png_path if supersampling.enabled else tmp_png_path)
         try:
             assert tuple(img.size) == (canvas.width_px, canvas.height_px), \
                     f"Rendered image has unexpected size: {tuple(img.size)} instead of {canvas.width_px}×{canvas.height_px}"
@@ -138,7 +141,7 @@ class Renderer:
                         pass  # ignored
 
     @staticmethod
-    def generate_preview(zoom: Zoom, hd: bool, supersampling: bool):
+    def generate_preview(zoom: Zoom, hd: bool, supersampling: SuperSampling):
         Renderer.camera_manoeuvring(zoom, hd=hd, supersampling=supersampling)
         #  reset camera border in case a large view has been rendered.. may want to do this after rendering instead
         bpy.context.scene.render.border_min_x = 0.0
@@ -146,11 +149,11 @@ class Renderer:
         bpy.context.scene.render.border_min_y = 0.0
         bpy.context.scene.render.border_max_y = 1.0
         bpy.context.scene.render.film_transparent = True
-        print(f"Rendering image ({bpy.context.scene.render.resolution_x}×{bpy.context.scene.render.resolution_y}, supersampling={supersampling})")
+        print(f"Rendering image ({bpy.context.scene.render.resolution_x}×{bpy.context.scene.render.resolution_y}, supersampling={supersampling.enabled})")
         bpy.ops.render.render('INVOKE_DEFAULT', write_still=False)
 
     @staticmethod
-    def camera_manoeuvring(zoom: Zoom, hd: bool, supersampling: bool) -> Canvas:
+    def camera_manoeuvring(zoom: Zoom, hd: bool, supersampling: SuperSampling) -> Canvas:
         r"""Adjust the offset, orthographic scale and resolution of the current
         camera so that the LOD fits into view, including a margin, and such
         that the orthographic scale results in a pixel-perfect display of the
@@ -177,9 +180,8 @@ class Renderer:
 
         # Adjustment of the orthographic scale to account for the added slop margin and the rounding to integer resolutions:
         cam.data.ortho_scale *= max(canvas.width_px, canvas.height_px) / dim_lod
-        supersampling_factor = 2 if supersampling else 1
-        bpy.context.scene.render.resolution_x = canvas.width_px * supersampling_factor
-        bpy.context.scene.render.resolution_y = canvas.height_px * supersampling_factor
+        bpy.context.scene.render.resolution_x = canvas.width_px * supersampling.factor
+        bpy.context.scene.render.resolution_y = canvas.height_px * supersampling.factor
         Renderer.offset_camera(cam, lod, canvas.width_px, canvas.height_px, margin=_SLOP)
 
         print(f"Output dimensions are {canvas.width_px}×{canvas.height_px}")
@@ -258,3 +260,14 @@ class Renderer:
             output_path,
         ])
         assert result.returncode == 0  # otherwise previous command would have raised
+
+
+@dataclass
+class SuperSampling:
+    enabled: bool
+    magick_exe: str | None = None
+    downsampling_filter: str | None = None
+    factor: int = field(init=False)
+
+    def __post_init__(self):
+        self.factor = 2 if self.enabled else 1
