@@ -76,3 +76,7 @@ def b4b_collection():
 
 def blend_file_name():
     return bpy.path.display_name_from_filepath(bpy.context.blend_data.filepath)
+
+
+class BAT4BlenderUserError(Exception):
+    pass

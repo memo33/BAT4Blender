@@ -5,7 +5,7 @@ from mathutils import Vector
 from pathlib import Path
 from dataclasses import dataclass, field
 from .Config import LODZ_NAME, CAM_NAME
-from .Utils import tgi_formatter, get_relative_path_for, translate, instance_id, b4b_collection, find_object
+from .Utils import tgi_formatter, get_relative_path_for, translate, instance_id, b4b_collection, find_object, BAT4BlenderUserError
 from .Enums import Zoom, Rotation
 from .Canvas import Canvas
 
@@ -231,15 +231,19 @@ class Renderer:
         tgi = tgi_formatter(gid, 0, 0, 0, is_model=True, prefix=True)
         sc4model_path = get_relative_path_for(f"{name}-{tgi}.SC4Model")
         print(f"Using fshgen to create SC4Model: {sc4model_path}")
-        result = subprocess.run([
-            fshgen_script, "import",
-            "--output", sc4model_path,
-            "--force",
-            "--with-BAT-models",
-            "--format", "Dxt1",
-            "--gid", f"0x{gid}",
-        ], input="\n".join(files).encode())
-        assert result.returncode == 0  # otherwise previous command would have raised
+        try:
+            result = subprocess.run([
+                fshgen_script, "import",
+                "--output", sc4model_path,
+                "--force",
+                "--with-BAT-models",
+                "--format", "Dxt1",
+                "--gid", f"0x{gid}",
+            ], input="\n".join(files).encode())
+        except FileNotFoundError:
+            raise BAT4BlenderUserError("fshgen executable not found. Install it and configure it under BAT4Blender Post-Processing, or disable Post-Processing.")
+        if result.returncode != 0:
+            raise BAT4BlenderUserError("""Failed to create SC4Model using "fshgen". Check console output for error messages, or disable Post-Processing.""")
         if delete:
             for f in files:
                 try:
@@ -251,15 +255,19 @@ class Renderer:
     def downsample_image(magick_exe: str, input_path: str, output_path: str, filter_name: str):
         import subprocess
         print(f"""Using ImageMagick filter "{filter_name}" to downsample rendering: {input_path}""")
-        result = subprocess.run([
-            magick_exe,
-            input_path,
-            "-colorspace", "RGB",  # switch to linear space
-            "-filter", filter_name, "-resize", "50%",
-            "-colorspace", "sRGB",  # switch back to gamma space
-            output_path,
-        ])
-        assert result.returncode == 0  # otherwise previous command would have raised
+        try:
+            result = subprocess.run([
+                magick_exe,
+                input_path,
+                "-colorspace", "RGB",  # switch to linear space
+                "-filter", filter_name, "-resize", "50%",
+                "-colorspace", "sRGB",  # switch back to gamma space
+                output_path,
+            ])
+        except FileNotFoundError:
+            raise BAT4BlenderUserError("ImageMagick executable not found. Install it and configure it under BAT4Blender Super-Sampling, or disable Super-Sampling.")
+        if result.returncode != 0:
+            raise BAT4BlenderUserError("Failed to downsample rendered image using ImageMagick. Check console output for error messages, or disable Super-Sampling.")
 
 
 @dataclass

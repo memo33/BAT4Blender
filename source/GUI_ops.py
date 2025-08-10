@@ -5,7 +5,7 @@ from .LOD import LOD
 from .Sun import Sun
 from .Camera import Camera
 from .Renderer import Renderer, SuperSampling
-from .Utils import blend_file_name
+from .Utils import blend_file_name, BAT4BlenderUserError
 from bpy.props import StringProperty
 import queue
 
@@ -159,8 +159,13 @@ class B4BRender(bpy.types.Operator):
                 f = self._execution_queue.get()
                 try:
                     f()
+                except BAT4BlenderUserError as e:
+                    import sys
+                    print(str(e), file=sys.stderr)
+                    self.report({'ERROR'}, str(e))  # consume user errors by reporting them in the UI
+                    self._cancelled = True
                 except Exception as e:
-                    self._exception = e
+                    self._exception = e  # keep forwarding internal errors (with stack trace)
                     self._cancelled = True
             return self._interval  # calls `execute_queue_loop` again after _interval
 

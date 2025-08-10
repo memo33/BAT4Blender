@@ -3,7 +3,7 @@ import bmesh
 from mathutils import Vector, Matrix
 from typing import List, Any
 from .Config import LODZ_NAME
-from .Utils import b4b_collection, translate, clip
+from .Utils import b4b_collection, translate, clip, BAT4BlenderUserError
 from .Enums import Rotation, Zoom
 
 
@@ -136,7 +136,7 @@ class LOD:
                 )
 
         else:
-            raise AssertionError(f"Unsupported Blender version ({bpy.app.version_string}). Install Blender 3.6 or 4.2+ instead.")
+            raise BAT4BlenderUserError(f"Unsupported Blender version ({bpy.app.version_string}). Install Blender 3.6 or 4.2+ instead.")
 
     @staticmethod
     def _copy_bmesh_with_face_filter(mesh: bmesh.types.BMesh, name: str, face_filter) -> bpy.types.Mesh:
