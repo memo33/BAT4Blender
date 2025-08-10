@@ -166,7 +166,7 @@ class LOD:
         obj.scale = lod.scale
         obj.rotation_euler = lod.rotation_euler
         obj.hide_render = True
-        b4b_collection().objects.link(obj)
+        bpy.context.scene.collection.objects.link(obj)  # linked to scene collection instead of BAT4Blender collection as the latter might be invisible (which would break the subsequent slice operations)
         return obj
 
     def sliced(lod, cam, canvas):
