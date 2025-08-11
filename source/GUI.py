@@ -85,6 +85,10 @@ class SuperSamplingPanel(bpy.types.Panel):
         preview = layout.row()
         preview.prop(context.scene.b4b, 'supersampling_preview', expand=False)
         preview.enabled = context.scene.b4b.supersampling_enabled
+        if context.scene.b4b.supersampling_preview == 'no_downsampling':
+            preview2 = layout.row()
+            preview2.operator(Operators.PREVIEW_DOWNSAMPLING.value[0])
+            preview2.enabled = context.scene.b4b.supersampling_enabled and context.scene.b4b.supersampling_preview == 'no_downsampling'
 
 
 class PostProcessPanel(bpy.types.Panel):

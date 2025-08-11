@@ -3,6 +3,7 @@ from enum import Enum
 
 class Operators(Enum):
     PREVIEW = "object.b4b_preview",
+    PREVIEW_DOWNSAMPLING = "object.b4b_preview_downsampling",
     RENDER = "object.b4b_render",
     LOD_FIT_ZOOM = "object.b4b_lod_fit_zoom",
     LOD_ADD = "object.b4b_lod_add",

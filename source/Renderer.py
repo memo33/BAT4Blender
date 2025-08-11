@@ -140,6 +140,9 @@ class Renderer:
                     except IOError:
                         pass  # ignored
 
+    _tmp_png_path_preview = Path(bpy.app.tempdir) / "b4b_preview.tmp.png"
+    _tmp_png_path_preview_downsampled = Path(bpy.app.tempdir) / "b4b_preview_downsampled.tmp.png"
+
     @staticmethod
     def generate_preview(zoom: Zoom, hd: bool, supersampling: SuperSampling):
         Renderer.camera_manoeuvring(zoom, hd=hd, supersampling=supersampling)
@@ -150,7 +153,27 @@ class Renderer:
         bpy.context.scene.render.border_max_y = 1.0
         bpy.context.scene.render.film_transparent = True
         print(f"Rendering image ({bpy.context.scene.render.resolution_x}×{bpy.context.scene.render.resolution_y}, supersampling={supersampling.enabled})")
-        bpy.ops.render.render('INVOKE_DEFAULT', write_still=False)
+        if not supersampling.enabled:
+            bpy.ops.render.render('INVOKE_DEFAULT', write_still=False)
+        else:
+            bpy.context.scene.render.filepath = str(Renderer._tmp_png_path_preview)
+            bpy.ops.render.render('INVOKE_DEFAULT', write_still=True)
+
+    @staticmethod
+    def downsample_preview(supersampling: SuperSampling):
+        if not Renderer._tmp_png_path_preview.exists():
+            raise BAT4BlenderUserError("Preview rendering does not exist yet. Render a preview at 2× resolution first.")
+        else:
+            Renderer.downsample_image(supersampling.magick_exe, Renderer._tmp_png_path_preview, Renderer._tmp_png_path_preview_downsampled, filter_name=supersampling.downsampling_filter)
+            name = 'b4b_preview_downsampled'
+            if name in bpy.data.images:
+                img = bpy.data.images[name]
+                img.filepath = str(Renderer._tmp_png_path_preview_downsampled)
+                img.reload()
+            else:
+                img = bpy.data.images.load(str(Renderer._tmp_png_path_preview_downsampled))
+                img.name = name
+            return img
 
     @staticmethod
     def camera_manoeuvring(zoom: Zoom, hd: bool, supersampling: SuperSampling) -> Canvas:
