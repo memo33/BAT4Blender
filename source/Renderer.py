@@ -287,10 +287,17 @@ class Renderer:
                 "-colorspace", "sRGB",  # switch back to gamma space
                 output_path,
             ])
+            if result.returncode != 0:
+                raise BAT4BlenderUserError("Failed to downsample rendered image using ImageMagick. Check console output for error messages, or disable Super-Sampling.")
+            result = subprocess.run([
+                magick_exe, "mogrify", "-format", "png",
+                "-background", "black", "-alpha", "background",  # set fully transparent pixels to black to avoid noise around edges
+                output_path,
+            ])
+            if result.returncode != 0:
+                raise BAT4BlenderUserError("Failed to downsample rendered image using ImageMagick. Check console output for error messages, or disable Super-Sampling.")
         except FileNotFoundError:
             raise BAT4BlenderUserError("ImageMagick executable not found. Install it and configure it under BAT4Blender Super-Sampling, or disable Super-Sampling.")
-        if result.returncode != 0:
-            raise BAT4BlenderUserError("Failed to downsample rendered image using ImageMagick. Check console output for error messages, or disable Super-Sampling.")
 
 
 @dataclass
