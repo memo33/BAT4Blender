@@ -4,10 +4,11 @@ from .Rig import Rig
 from .LOD import LOD
 from .Sun import Sun
 from .Camera import Camera
-from .Renderer import Renderer
-from .Utils import blend_file_name
+from .Renderer import Renderer, SuperSampling
+from .Utils import blend_file_name, BAT4BlenderUserError
 from bpy.props import StringProperty
 import queue
+import sys
 
 
 # The OK button in the error dialog
@@ -159,8 +160,12 @@ class B4BRender(bpy.types.Operator):
                 f = self._execution_queue.get()
                 try:
                     f()
+                except BAT4BlenderUserError as e:
+                    print(str(e), file=sys.stderr)
+                    self.report({'ERROR'}, str(e))  # consume user errors by reporting them in the UI
+                    self._cancelled = True
                 except Exception as e:
-                    self._exception = e
+                    self._exception = e  # keep forwarding internal errors (with stack trace)
                     self._cancelled = True
             return self._interval  # calls `execute_queue_loop` again after _interval
 
@@ -173,7 +178,14 @@ class B4BRender(bpy.types.Operator):
         model_name = blend_file_name()
         hd = context.scene.b4b.hd == 'HD'
         Rig.setup(v, z, hd=hd)
-        self._render_post_args = Renderer.render_pre(z, v, context.scene.b4b.group_id, model_name, hd=hd)
+        if context.scene.b4b.supersampling_enabled:
+            supersampling = SuperSampling(
+                enabled=True,
+                magick_exe=(context.preferences.addons[__package__].preferences.imagemagick_path or "magick"),
+                downsampling_filter=context.scene.b4b.downsampling_filter)
+        else:
+            supersampling = SuperSampling(enabled=False)
+        self._render_post_args = Renderer.render_pre(z, v, context.scene.b4b.group_id, model_name, hd=hd, supersampling=supersampling)
 
         # The following render call returns immediately *before* rendering finished,
         # so slicing rendered image is done later in post processing after rendering finished.
@@ -201,8 +213,42 @@ class B4BPreview(bpy.types.Operator):
         hd = context.scene.b4b.hd == 'HD'
         Rig.setup(v, z, hd=hd)
         # q: pass the context to the renderer? or just grab it from internals..
-        Renderer.generate_preview(z, hd=hd)
+        supersampling = SuperSampling(enabled=(context.scene.b4b.supersampling_enabled and context.scene.b4b.supersampling_preview != 'no_supersampling'))
+        Renderer.generate_preview(z, hd=hd, supersampling=supersampling)
         return {'FINISHED'}
+
+
+class B4BPreviewDownSampling(bpy.types.Operator):
+    bl_description = r"""After rendering Preview at 2× resolution, click to down-scale the render result to its final size"""
+    bl_idname = Operators.PREVIEW_DOWNSAMPLING.value[0]
+    bl_label = "Down-sample last Preview render"
+
+    def execute(self, context):
+        try:
+            supersampling = SuperSampling(
+                enabled=(context.scene.b4b.supersampling_enabled and context.scene.b4b.supersampling_preview != 'no_supersampling'),
+                magick_exe=(context.preferences.addons[__package__].preferences.imagemagick_path or "magick"),
+                downsampling_filter=context.scene.b4b.downsampling_filter)
+            img = Renderer.downsample_preview(supersampling=supersampling)
+            areas = [a for s in bpy.data.screens if s.name != 'Rendering'  # skip Rendering, so that next Preview shows Render Result again instead of outdated downsampled image
+                     for a in s.areas if a.type == 'IMAGE_EDITOR' and
+                     a.spaces.active.image and a.spaces.active.image.name in ['Render Result', img.name]]
+            if not areas:  # fallback to using Rendering instead
+                areas = [a for s in bpy.data.screens if s.name == 'Rendering'
+                         for a in s.areas if a.type == 'IMAGE_EDITOR' and
+                         (not a.spaces.active.image or a.spaces.active.image.name in ['Render Result', img.name])]
+            if not areas:
+                raise BAT4BlenderUserError(f"""Could not find temp image viewer. Open "{img.name}" in Image Editor instead.""")
+            else:
+                print(f"Setting downsampled preview image in {len(areas)} image editors")
+                for a in areas:
+                    a.spaces.active.image = img
+                self.report({'INFO'}, f"""Success. See Image Editor for the new down-sampled image "{img.name}".""")
+            return {'FINISHED'}
+        except BAT4BlenderUserError as e:
+            print(str(e), file=sys.stderr)
+            self.report({'ERROR'}, str(e))  # consume user errors by reporting them in the UI
+            return {'CANCELLED'}
 
 
 class B4BLODAdd(bpy.types.Operator):

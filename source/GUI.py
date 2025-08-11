@@ -60,6 +60,37 @@ class MainPanel(bpy.types.Panel):
             label.label(text=context.window_manager.b4b.progress_label)
 
 
+class SuperSamplingPanel(bpy.types.Panel):
+    """A subpanel for BAT4Blender scene context of the properties editor"""
+    bl_label = "Super-Sampling"
+    bl_idname = 'SCENE_PT_b4b_supersampling'
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = 'scene'
+    bl_parent_id = 'SCENE_PT_b4b_layout'
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw_header(self, context):
+        layout = self.layout
+        layout.prop(context.scene.b4b, 'supersampling_enabled', icon_only=True)
+
+    def draw(self, context):
+        layout = self.layout
+        downsampling = layout.row()
+        downsampling.prop(context.scene.b4b, 'downsampling_filter', expand=False)
+        downsampling.enabled = context.scene.b4b.supersampling_enabled
+        path = layout.row()
+        path.prop(context.preferences.addons[__package__].preferences, 'imagemagick_path', text="ImageMagick")
+        path.enabled = context.scene.b4b.supersampling_enabled
+        preview = layout.row()
+        preview.prop(context.scene.b4b, 'supersampling_preview', expand=False)
+        preview.enabled = context.scene.b4b.supersampling_enabled
+        if context.scene.b4b.supersampling_preview == 'no_downsampling':
+            preview2 = layout.row()
+            preview2.operator(Operators.PREVIEW_DOWNSAMPLING.value[0])
+            preview2.enabled = context.scene.b4b.supersampling_enabled and context.scene.b4b.supersampling_preview == 'no_downsampling'
+
+
 class PostProcessPanel(bpy.types.Panel):
     """A subpanel for BAT4Blender scene context of the properties editor"""
     bl_label = "Post-Processing"
@@ -146,6 +177,32 @@ class B4BSceneProps(bpy.types.PropertyGroup):
         default='SD',
     )
 
+    supersampling_enabled: bpy.props.BoolProperty(
+        default=True,
+        name="Super-Sampling",
+        description="When enabled, render at 2× resolution for sharper results. In turn, you may reduce the Max Samples down to 25 % or increase the Noise Threshold",
+    )
+
+    supersampling_preview: bpy.props.EnumProperty(
+        items=[
+            ('no_supersampling', "1× resolution (no super-sampling)", "Disable super-sampling for Preview renders", '', 0),
+            ('no_downsampling', "keep 2× resolution (no down-sampling)", "Keep the super-sampled Preview rendendering", '', 1),
+        ],
+        default='no_supersampling',
+        name="Preview",
+        description="Super-sampling setting for Preview renders",
+    )
+
+    downsampling_filter: bpy.props.EnumProperty(
+        items=[
+            ('MagicKernelSharp2021', "Magic Kernel Sharp 2021", "Sharp, but slightly more artifacts than Catmull-Rom", '', 0),
+            ('CatRom', "Catmull-Rom", "Slightly smoother than Magic Kernel Sharp 2021", '', 1),
+        ],
+        default='MagicKernelSharp2021',
+        name="Down-Sampling",
+        description="Filter for down-scaling the high-res image",
+    )
+
     postproc_enabled: bpy.props.BoolProperty(
         default=False,
         name="Post-Processing",
@@ -164,6 +221,12 @@ class B4BPreferences(bpy.types.AddonPreferences):
     """
     bl_idname = __package__
 
+    imagemagick_path: bpy.props.StringProperty(
+        name="""The location of the "magick" executable""",
+        description="""For down-sampling, ImageMagick needs to be installed; select the location of the "magick" executable if it is not on your PATH""",
+        subtype='FILE_PATH',
+    )
+
     fshgen_path: bpy.props.StringProperty(
         name="""The "fshgen" script file""",
         description="""For creating SC4Model files, install "fshgen" and select the location of the "fshgen.bat" (Windows) or "fshgen" (macOS/Linux) script file if it is not on your PATH""",
@@ -172,6 +235,9 @@ class B4BPreferences(bpy.types.AddonPreferences):
 
     def draw(self, context):
         layout = self.layout
+        desc = self.__annotations__['imagemagick_path'].keywords['description']
+        layout.label(text=f"{desc}.")
+        layout.prop(self, 'imagemagick_path')
         desc = self.__annotations__['fshgen_path'].keywords['description']
         layout.label(text=f"{desc}.")
         layout.prop(self, 'fshgen_path')
