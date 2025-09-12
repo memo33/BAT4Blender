@@ -64,8 +64,10 @@ class B4BRender(bpy.types.Operator):
         self._finished = False  # is set after last rendering step or after being cancelled
         self._exception = None
         context = bpy.context
+        self._orig_zoom = Zoom[context.window_manager.b4b.zoom]
+        self._orig_rotation = Rotation[context.window_manager.b4b.rotation]
         if context.scene.b4b.render_current_view_only:
-            self._steps = [(Zoom[context.window_manager.b4b.zoom], Rotation[context.window_manager.b4b.rotation])]
+            self._steps = [(self._orig_zoom, self._orig_rotation)]
         else:
             self._steps = [(z, v) for z in Zoom for v in Rotation]
         self._step = 0
@@ -128,12 +130,11 @@ class B4BRender(bpy.types.Operator):
 
         return {'RUNNING_MODAL'}
 
-    def _redraw_properties_panel(self):
+    def _redraw_areas(self, area_types: set[str]):
         for window in bpy.context.window_manager.windows:
             for area in window.screen.areas:
-                if area.type == 'PROPERTIES':
+                if area.type in area_types:
                     area.tag_redraw()
-                    break
 
     def modal(self, context, event):
         if self._finished:  # (potentially problematic since this is set on another thread)
@@ -151,8 +152,14 @@ class B4BRender(bpy.types.Operator):
             bpy.app.handlers.render_cancel.remove(self._cancel_handler)
             print('CANCELLED' if self._cancelled else 'FINISHED')
             self._finished = True
+            bpy.context.window_manager.b4b.zoom = self._orig_zoom.name
+            bpy.context.window_manager.b4b.rotation = self._orig_rotation.name
             bpy.context.window_manager.b4b.is_rendering = False
-            self._redraw_properties_panel()  # redraw to show Render button instead of progress bar again
+            bpy.context.window_manager.update_tag()  # so that the UI display of drivers depending on e.g. `b4b.rotation` switch back to the original value again
+            self._redraw_areas(area_types=set([
+                'PROPERTIES',  # redraw to show Render button instead of progress bar again
+                'OUTLINER',  # to redraw potential driver states depending on e.g. `b4b.rotation`
+            ]))
             return None  # timer finishes and is unregistered
         else:
             # run next function from execution queue
@@ -173,6 +180,8 @@ class B4BRender(bpy.types.Operator):
         context = bpy.context
         z, v = self._steps[self._step]
         print(f"Step ({self._step+1}/{len(self._steps)}): Zoom {z.value+1} {v.name}")
+        context.window_manager.b4b.zoom = z.name
+        context.window_manager.b4b.rotation = v.name
         context.window_manager.b4b.progress = 100 * self._step / len(self._steps)  # TODO consider non-linearity
         context.window_manager.b4b.progress_label = f"({self._step+1}/{len(self._steps)}) Zoom {z.value+1} {v.name}"
         model_name = blend_file_name()

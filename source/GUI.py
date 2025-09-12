@@ -146,13 +146,13 @@ class B4BWmProps(bpy.types.PropertyGroup):
 
     zoom: bpy.props.EnumProperty(
         items=(lambda self, context: [
-            (Zoom.ONE.name, '1', 'zoom 1', '', Zoom.ONE.value),
-            (Zoom.TWO.name, '2', 'zoom 2', '', Zoom.TWO.value),
-            (Zoom.THREE.name, '3', 'zoom 3', '', Zoom.THREE.value),
-            (Zoom.FOUR.name, '4', 'zoom 4', '', Zoom.FOUR.value),
-            (Zoom.FIVE.name, '5ᴴᴰ' if context.scene.b4b.hd == 'HD' else '5', 'zoom 5', '', Zoom.FIVE.value),
+            (Zoom.ONE.name, '1', 'zoom 1', '', Zoom.ONE.value + 1),
+            (Zoom.TWO.name, '2', 'zoom 2', '', Zoom.TWO.value + 1),
+            (Zoom.THREE.name, '3', 'zoom 3', '', Zoom.THREE.value + 1),
+            (Zoom.FOUR.name, '4', 'zoom 4', '', Zoom.FOUR.value + 1),
+            (Zoom.FIVE.name, '5ᴴᴰ' if context.scene.b4b.hd == 'HD' else '5', 'zoom 5', '', Zoom.FIVE.value + 1),
         ]),
-        default=Zoom.FIVE.value,
+        default=Zoom.FIVE.value + 1,
     )
 
     is_rendering: bpy.props.BoolProperty(default=False, name="Render In Progress")
