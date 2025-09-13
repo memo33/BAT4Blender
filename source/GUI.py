@@ -1,5 +1,5 @@
 import bpy
-from .Enums import Operators, Rotation, Zoom
+from .Enums import Operators, Rotation, Zoom, NightMode
 from .GUI_ops import B4BRender
 
 
@@ -20,6 +20,8 @@ class MainPanel(bpy.types.Panel):
         layout.label(text="Zoom")
         zoom = layout.row()
         zoom.prop(context.window_manager.b4b, 'zoom', expand=True)
+        night = layout.row()
+        night.prop(context.window_manager.b4b, 'nightmode', expand=True)
 
         self.layout.operator(Operators.PREVIEW.value[0])
 
@@ -47,6 +49,8 @@ class MainPanel(bpy.types.Panel):
         grp.operator(Operators.GID_RANDOMIZE.value[0], text='', icon='FILE_REFRESH')
         hd = layout.row()
         hd.prop(context.scene.b4b, 'hd', expand=True)
+        day_night = layout.row()
+        day_night.prop(context.scene.b4b, 'render_day_night', expand=False)
         if not context.window_manager.b4b.is_rendering:
             text = (B4BRender.bl_label if not context.scene.b4b.render_current_view_only
                     else f"Render only zoom {z.value+1} {Rotation[context.window_manager.b4b.rotation].compass_name()}  (see {AdvancedPanel.bl_label})")
@@ -155,6 +159,15 @@ class B4BWmProps(bpy.types.PropertyGroup):
         default=Zoom.FIVE.value + 1,
     )
 
+    nightmode: bpy.props.EnumProperty(
+        items=[
+            (NightMode.DAY.name, 'Day', 'day light', '', NightMode.DAY.value),
+            (NightMode.MAXIS_NIGHT.name, 'MN', 'Maxis night', '', NightMode.MAXIS_NIGHT.value),
+            (NightMode.DARK_NIGHT.name, 'DN', 'dark night', '', NightMode.DARK_NIGHT.value),
+        ],
+        default=NightMode.DAY.value,
+    )
+
     is_rendering: bpy.props.BoolProperty(default=False, name="Render In Progress")
     progress: bpy.props.FloatProperty(name="Progress", subtype='PERCENTAGE', soft_min=0, soft_max=100, precision=0)
     progress_label: bpy.props.StringProperty()
@@ -175,6 +188,20 @@ class B4BSceneProps(bpy.types.PropertyGroup):
             ('HD', 'HD', "high definition (doubles zoom 5 resolution)", '', 1),
         ],
         default='SD',
+    )
+
+    render_day_night: bpy.props.EnumProperty(
+        items=[
+            (str(flags), label, desc, '', flags) for label, desc, flags in [
+                ("Day only", "No night lights", 1 << NightMode.DAY.value),
+                ("Day & MN", "Day and Maxis night", 1 << NightMode.DAY.value | 1 << NightMode.MAXIS_NIGHT.value),
+                ("Day & DN", "Day and dark night", 1 << NightMode.DAY.value | 1 << NightMode.DARK_NIGHT.value),
+                ("Day & MN & DN", "Day and both Maxis/dark night", 1 << NightMode.DAY.value | 1 << NightMode.MAXIS_NIGHT.value | 1 << NightMode.DARK_NIGHT.value),
+            ]
+        ],
+        default=str(1 << NightMode.DAY.value),
+        name="Day/Night",
+        description="Select day and night modes to render",
     )
 
     supersampling_enabled: bpy.props.BoolProperty(

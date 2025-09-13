@@ -6,7 +6,7 @@ from pathlib import Path
 from dataclasses import dataclass, field
 from .Config import LODZ_NAME, CAM_NAME
 from .Utils import tgi_formatter, get_relative_path_for, translate, instance_id, b4b_collection, find_object, BAT4BlenderUserError
-from .Enums import Zoom, Rotation
+from .Enums import Zoom, Rotation, NightMode
 from .Canvas import Canvas
 
 # sd default
@@ -56,42 +56,50 @@ class Renderer:
         cam = find_object(coll, CAM_NAME)
         lod = find_object(coll, LODZ_NAME[z.value])
 
+        # The LODs must not depend on nightmode, so temporarily switch to day and only export when day
+        nightmode = NightMode[bpy.context.window_manager.b4b.nightmode]
+        bpy.context.window_manager.b4b.nightmode = NightMode.DAY.name
+        should_export = nightmode == NightMode.DAY
+
         # Next, slice the LOD and export it.
         tile_indices = list(canvas.tiles())
         lod_slices = LOD.sliced(lod, cam, canvas)
         tile_indices_nonempty = [pos for pos in tile_indices if len(lod_slices[pos].data.polygons) > 0]
         assert tile_indices_nonempty, "LOD must not be completely empty, but should contain at least 1 polygon"
         materials = []
-        for count, pos in enumerate(tile_indices_nonempty):
-            iid = instance_id(z.value, v.value, count)
-            mesh_name = f"{model_name}_UserModel_Z{z.value+1}{v.compass_name()}_{count}"
-            mat_name = f"{iid:08X}_{model_name}_UserModel_Z{z.value+1}{v.compass_name()}"
-            lod_slices[pos].name = lod_slices[pos].data.name = mesh_name  # keep object and data names in sync
-            materials.append(LOD.assign_material_name(lod_slices[pos], mat_name))
-        stem = tgi_formatter(gid, z.value, v.value, 0, is_model=True)
-        obj_path = get_relative_path_for(f"{stem}.obj")
-        mtl_path = get_relative_path_for(f"{stem}.mtl")
-        LOD.export([lod_slices[pos] for pos in tile_indices_nonempty], obj_path, v)
-        try:
-            # .obj export creates .mtl material files that are not needed
-            Path(mtl_path).unlink(missing_ok=True)
-        except IOError:
-            pass  # ignored
+        obj_path = None
+        if should_export:
+            for count, pos in enumerate(tile_indices_nonempty):
+                iid = instance_id(z.value, v.value, count, is_night=False)
+                mesh_name = f"{model_name}_UserModel_Z{z.value+1}{v.compass_name()}_{count}"
+                mat_name = f"{iid:08X}_{model_name}_UserModel_Z{z.value+1}{v.compass_name()}"
+                lod_slices[pos].name = lod_slices[pos].data.name = mesh_name  # keep object and data names in sync
+                materials.append(LOD.assign_material_name(lod_slices[pos], mat_name))
+            stem = tgi_formatter(gid, z.value, v.value, 0, is_model=True, is_night=False)
+            obj_path = get_relative_path_for(f"{stem}.obj")
+            mtl_path = get_relative_path_for(f"{stem}.mtl")
+            LOD.export([lod_slices[pos] for pos in tile_indices_nonempty], obj_path, v)
+            try:
+                # .obj export creates .mtl material files that are not needed
+                Path(mtl_path).unlink(missing_ok=True)
+            except IOError:
+                pass  # ignored
         # after export, we can discard LOD slices, as we only need tile indices.
         for lod_slice in lod_slices.values():
             bpy.data.meshes.remove(lod_slice.data)
         for mat in materials:
             bpy.data.materials.remove(mat)
+        bpy.context.window_manager.b4b.nightmode = nightmode.name
 
         # Render the full image to a temporary location
         bpy.context.scene.render.use_border = False  # always render the full frame
-        tmp_png_path = get_relative_path_for(f"{tgi_formatter(gid, z.value, v.value, 0)}.tmp.png")
+        tmp_png_path = get_relative_path_for(f"{tgi_formatter(gid, z.value, v.value, 0, is_night=(nightmode != NightMode.DAY))}_{nightmode.label()}.tmp.png")
         bpy.context.scene.render.filepath = tmp_png_path
-        print(f"Rendering image ({bpy.context.scene.render.resolution_x}×{bpy.context.scene.render.resolution_y}, supersampling={supersampling.enabled})")
+        print(f"Rendering image ({bpy.context.scene.render.resolution_x}×{bpy.context.scene.render.resolution_y}, supersampling={supersampling.enabled}, nightmode={nightmode.label()})")
         return canvas, tile_indices_nonempty, tmp_png_path, obj_path, supersampling
 
     @staticmethod
-    def render_post(z: Zoom, v: Rotation, gid, canvas: Canvas, tile_indices_nonempty: list[(int, int)], tmp_png_path: str, obj_path: str, supersampling: SuperSampling):
+    def render_post(z: Zoom, v: Rotation, gid, canvas: Canvas, tile_indices_nonempty: list[(int, int)], tmp_png_path: str, obj_path: str | None, supersampling: SuperSampling):
         r"""This function is invoked by the modal operator after the rendering of this view finished,
         and yields the generated output files.
         We slice the rendered image here.
@@ -100,9 +108,11 @@ class Renderer:
         from pathlib import Path
         if not Path(tmp_png_path).is_file():
             return  # this can happen when rendering was cancelled
-        yield obj_path
+        if obj_path is not None:  # only defined for day
+            yield obj_path
+        nightmode = NightMode[bpy.context.window_manager.b4b.nightmode]
         if supersampling.enabled:
-            downsampled_tmp_png_path = get_relative_path_for(f"{tgi_formatter(gid, z.value, v.value, 0)}_downsampled.tmp.png")
+            downsampled_tmp_png_path = get_relative_path_for(f"{tgi_formatter(gid, z.value, v.value, 0, is_night=(nightmode != NightMode.DAY))}_{nightmode.label()}_downsampled.tmp.png")
             assert supersampling.magick_exe, """Location for "magick" executable not set"""
             assert supersampling.downsampling_filter, "Down-sampling filter not set"
             Renderer.downsample_image(supersampling.magick_exe, tmp_png_path, downsampled_tmp_png_path, filter_name=supersampling.downsampling_filter)
@@ -124,7 +134,7 @@ class Renderer:
                 img_tile = bpy.data.images.new("b4b_canvas_tile", width=(right-left), height=(top-bottom), alpha=(img.channels >= 4))
                 img_tile.file_format
                 img_tile.file_format = 'PNG'
-                img_tile.filepath = get_relative_path_for(f"{tgi_formatter(gid, z.value, v.value, count)}.png")
+                img_tile.filepath = get_relative_path_for(f"{tgi_formatter(gid, z.value, v.value, count, is_night=(nightmode != NightMode.DAY))}_{nightmode.label()}.png")
                 img_tile.pixels = arr[bottom:top, left:right, :].ravel()
                 img_tile.save()
                 print(f"Saved: '{img_tile.filepath}'")
@@ -249,10 +259,10 @@ class Renderer:
         return scale
 
     @staticmethod
-    def create_sc4model(fshgen_script: str, files: list[str], name: str, gid: str, delete: bool):
+    def create_sc4model(fshgen_script: str, files: list[str], name: str, gid: str, nightmode: NightMode):
         import subprocess
         tgi = tgi_formatter(gid, 0, 0, 0, is_model=True, prefix=True)
-        sc4model_path = get_relative_path_for(f"{name}-{tgi}.SC4Model")
+        sc4model_path = get_relative_path_for(f"{name}-{tgi}.SC4Model" if nightmode == NightMode.DAY else f"{name}-{tgi}-{nightmode.label()}.SC4Model")
         print(f"Using fshgen to create SC4Model: {sc4model_path}")
         try:
             result = subprocess.run([
@@ -267,12 +277,6 @@ class Renderer:
             raise BAT4BlenderUserError("fshgen executable not found. Install it and configure it under BAT4Blender Post-Processing, or disable Post-Processing.")
         if result.returncode != 0:
             raise BAT4BlenderUserError("""Failed to create SC4Model using "fshgen". Check console output for error messages, or disable Post-Processing.""")
-        if delete:
-            for f in files:
-                try:
-                    Path(f).unlink(missing_ok=True)
-                except IOError:
-                    pass  # ignored
 
     @staticmethod
     def downsample_image(magick_exe: str, input_path: str, output_path: str, filter_name: str):

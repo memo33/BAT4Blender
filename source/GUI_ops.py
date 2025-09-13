@@ -1,5 +1,5 @@
 import bpy
-from .Enums import Operators, Rotation, Zoom
+from .Enums import Operators, Rotation, Zoom, NightMode
 from .Rig import Rig
 from .LOD import LOD
 from .Sun import Sun
@@ -9,6 +9,7 @@ from .Utils import blend_file_name, BAT4BlenderUserError
 from bpy.props import StringProperty
 import queue
 import sys
+from pathlib import Path
 
 
 # The OK button in the error dialog
@@ -66,22 +67,25 @@ class B4BRender(bpy.types.Operator):
         context = bpy.context
         self._orig_zoom = Zoom[context.window_manager.b4b.zoom]
         self._orig_rotation = Rotation[context.window_manager.b4b.rotation]
+        self._orig_nightmode = NightMode[context.window_manager.b4b.nightmode]
+        day_night_flags = int(context.scene.b4b.render_day_night)
+        self._active_nightmodes = [nightmode for nightmode in NightMode if day_night_flags & (1 << nightmode.value) != 0]
         if context.scene.b4b.render_current_view_only:
-            self._steps = [(self._orig_zoom, self._orig_rotation)]
+            self._steps = [(self._orig_zoom, self._orig_rotation, self._orig_nightmode)]
         else:
-            self._steps = [(z, v) for z in Zoom for v in Rotation]
+            self._steps = [(z, v, nightmode) for nightmode in self._active_nightmodes for z in Zoom for v in Rotation]
         self._step = 0
         self._interval = 0.5  # seconds
         self._render_post_args = None
         self._execution_queue = queue.Queue()
-        self._output_files = []  # is *only* accessed on main thread, so no need for synchronization
+        self._output_files = {nightmode: [] for nightmode in self._active_nightmodes}  # is *only* accessed on main thread, so no need for synchronization
 
     def _post_handler(self, scene, depsgraph):
         r"""Runs after each rendering call.
         """
         def f():
-            z, v = self._steps[self._step]
-            self._output_files.extend(Renderer.render_post(z, v, scene.b4b.group_id, *self._render_post_args))
+            z, v, nightmode = self._steps[self._step]
+            self._output_files[nightmode].extend(Renderer.render_post(z, v, scene.b4b.group_id, *self._render_post_args))
             self._render_post_args = None
             print("-" * 60)
             self._step += 1
@@ -95,11 +99,32 @@ class B4BRender(bpy.types.Operator):
                         context.window_manager.b4b.progress_label = "Creating SC4Model file"
                         fshgen_script = context.preferences.addons[__package__].preferences.fshgen_path or "fshgen"
                         model_name = blend_file_name()
-                        Renderer.create_sc4model(fshgen_script,
-                                                 self._output_files,
-                                                 name=model_name,
-                                                 gid=context.scene.b4b.group_id,
-                                                 delete=True)
+                        if NightMode.MAXIS_NIGHT in self._active_nightmodes:
+                            Renderer.create_sc4model(fshgen_script,
+                                                     self._output_files[NightMode.DAY] + self._output_files[NightMode.MAXIS_NIGHT],
+                                                     name=model_name,
+                                                     gid=context.scene.b4b.group_id,
+                                                     nightmode=NightMode.MAXIS_NIGHT)
+                        if NightMode.DARK_NIGHT in self._active_nightmodes:
+                            Renderer.create_sc4model(fshgen_script,
+                                                     self._output_files[NightMode.DAY] + self._output_files[NightMode.DARK_NIGHT],
+                                                     name=model_name,
+                                                     gid=context.scene.b4b.group_id,
+                                                     nightmode=NightMode.DARK_NIGHT)
+                        if all(nm not in self._active_nightmodes for nm in [NightMode.MAXIS_NIGHT, NightMode.DARK_NIGHT]):
+                            Renderer.create_sc4model(fshgen_script,
+                                                     self._output_files[NightMode.DAY],
+                                                     name=model_name,
+                                                     gid=context.scene.b4b.group_id,
+                                                     nightmode=NightMode.DAY)
+                        delete_intermediate_files = True
+                        if delete_intermediate_files:
+                            for files in self._output_files.values():
+                                for f in files:
+                                    try:
+                                        Path(f).unlink(missing_ok=True)
+                                    except IOError:
+                                        pass  # ignored
 
         self.run_on_main_thread(f)
 
@@ -154,6 +179,7 @@ class B4BRender(bpy.types.Operator):
             self._finished = True
             bpy.context.window_manager.b4b.zoom = self._orig_zoom.name
             bpy.context.window_manager.b4b.rotation = self._orig_rotation.name
+            bpy.context.window_manager.b4b.nightmode = self._orig_nightmode.name
             bpy.context.window_manager.b4b.is_rendering = False
             bpy.context.window_manager.update_tag()  # so that the UI display of drivers depending on e.g. `b4b.rotation` switch back to the original value again
             self._redraw_areas(area_types=set([
@@ -178,12 +204,13 @@ class B4BRender(bpy.types.Operator):
 
     def handle_next_step(self):
         context = bpy.context
-        z, v = self._steps[self._step]
-        print(f"Step ({self._step+1}/{len(self._steps)}): Zoom {z.value+1} {v.name}")
+        z, v, nightmode = self._steps[self._step]
+        print(f"Step ({self._step+1}/{len(self._steps)}): Zoom {z.value+1} {v.name} {nightmode.label()}")
         context.window_manager.b4b.zoom = z.name
         context.window_manager.b4b.rotation = v.name
+        context.window_manager.b4b.nightmode = nightmode.name
         context.window_manager.b4b.progress = 100 * self._step / len(self._steps)  # TODO consider non-linearity
-        context.window_manager.b4b.progress_label = f"({self._step+1}/{len(self._steps)}) Zoom {z.value+1} {v.name}"
+        context.window_manager.b4b.progress_label = f"({self._step+1}/{len(self._steps)}) Zoom {z.value+1} {v.name} {nightmode.label()}"
         model_name = blend_file_name()
         hd = context.scene.b4b.hd == 'HD'
         Rig.setup(v, z, hd=hd)

@@ -35,6 +35,16 @@ Notes
 - Post-Processing (`Properties` -> `Scene` -> `BAT4Blender`):
   Enable this to automatically convert the exported LODs (OBJ files) and rendered images (PNG files) to an SC4Model file (requires fshgen).
 
+- Night lights: There's no pre-configured rig yet, but you can customize the night renderings using Drivers:
+  - Right click on the `Day | MN | DN` panel and _Copy as New Driver_.
+  - Right click on any property that should depend on the day/night state (e.g. _Strength_ of a light source, or _Disable in Render_ button) and _Paste Driver_.
+  - Right click the property and _Edit Driver_.
+  - Set _Type_ to _Scripted Expression_.
+  - Adjust the _Expression_. Examples:
+    - `10.0 if nightmode == 0 else 2.5` for a Float value
+    - `nightmode != 0` for a Boolean value
+  - Copy the driver to any other property that should use the same expression.
+
 - Click "Render all zooms & rotations" to render images and export LODs. They are saved in your current working directory from which Blender was launched.
 
 ## Roadmap
@@ -45,12 +55,17 @@ Notes
 - [x] uv-mapping of LODs
 - [x] zoom-dependent LODs
 - [ ] renderer settings (lighting/shading/materials/…)
-- [ ] nightlights
+- [x] nightlights
 - [ ] darknite settings
 - [x] HD rendering
 - [x] conversion of LODs to S3D: Using [fshgen](https://github.com/memo33/fshgen/releases):
-  ```
-  fshgen import -o output.SC4Model --force --with-BAT-models --format Dxt1 --gid 0xffffffff *.obj *.png
+  ```bash
+  # Day only
+  fshgen import --output model.SC4Model --force --with-BAT-models --format Dxt1 --gid 0xffffffff *.obj *_Day.png
+  # Maxis night
+  fshgen import --output model-MN.SC4Model --force --with-BAT-models --format Dxt1 --gid 0xffffffff *.obj *_Day.png *_MN.png
+  # dark night
+  fshgen import --output model-DN.SC4Model --force --with-BAT-models --format Dxt1 --gid 0xffffffff *.obj *_Day.png *_DN.png
   ```
   This is executed automatically if Post-Processing is enabled (see above).
 - [x] showing progress while rendering: Go to the Rendering workspace to see the current image. Press ESC to cancel rendering.

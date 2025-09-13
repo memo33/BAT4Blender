@@ -32,3 +32,15 @@ class Zoom(Enum):
     THREE = 2
     FOUR = 3
     FIVE = 4
+
+
+class NightMode(Enum):
+    DAY = 0
+    MAXIS_NIGHT = 1
+    DARK_NIGHT = 2
+
+    def label(self) -> str:
+        match self:
+            case NightMode.DAY: return "Day"
+            case NightMode.MAXIS_NIGHT: return "MN"
+            case NightMode.DARK_NIGHT: return "DN"
