@@ -69,10 +69,11 @@ class B4BRender(bpy.types.Operator):
         self._orig_rotation = Rotation[context.window_manager.b4b.rotation]
         self._orig_nightmode = NightMode[context.window_manager.b4b.nightmode]
         day_night_flags = int(context.scene.b4b.render_day_night)
-        self._active_nightmodes = [nightmode for nightmode in NightMode if day_night_flags & (1 << nightmode.value) != 0]
         if context.scene.b4b.render_current_view_only:
+            self._active_nightmodes = [self._orig_nightmode]
             self._steps = [(self._orig_zoom, self._orig_rotation, self._orig_nightmode)]
         else:
+            self._active_nightmodes = [nightmode for nightmode in NightMode if day_night_flags & (1 << nightmode.value) != 0]
             self._steps = [(z, v, nightmode) for nightmode in self._active_nightmodes for z in Zoom for v in Rotation]
         self._step = 0
         self._interval = 0.5  # seconds
@@ -99,24 +100,25 @@ class B4BRender(bpy.types.Operator):
                         context.window_manager.b4b.progress_label = "Creating SC4Model file"
                         fshgen_script = context.preferences.addons[__package__].preferences.fshgen_path or "fshgen"
                         model_name = blend_file_name()
-                        if NightMode.MAXIS_NIGHT in self._active_nightmodes:
-                            Renderer.create_sc4model(fshgen_script,
-                                                     self._output_files[NightMode.DAY] + self._output_files[NightMode.MAXIS_NIGHT],
-                                                     name=model_name,
-                                                     gid=context.scene.b4b.group_id,
-                                                     nightmode=NightMode.MAXIS_NIGHT)
-                        if NightMode.DARK_NIGHT in self._active_nightmodes:
-                            Renderer.create_sc4model(fshgen_script,
-                                                     self._output_files[NightMode.DAY] + self._output_files[NightMode.DARK_NIGHT],
-                                                     name=model_name,
-                                                     gid=context.scene.b4b.group_id,
-                                                     nightmode=NightMode.DARK_NIGHT)
-                        if all(nm not in self._active_nightmodes for nm in [NightMode.MAXIS_NIGHT, NightMode.DARK_NIGHT]):
+                        if self._active_nightmodes == [NightMode.DAY]:  # Day only
                             Renderer.create_sc4model(fshgen_script,
                                                      self._output_files[NightMode.DAY],
                                                      name=model_name,
                                                      gid=context.scene.b4b.group_id,
                                                      nightmode=NightMode.DAY)
+                        else:  # Night
+                            if NightMode.MAXIS_NIGHT in self._active_nightmodes:
+                                Renderer.create_sc4model(fshgen_script,
+                                                         self._output_files.get(NightMode.DAY, []) + self._output_files[NightMode.MAXIS_NIGHT],
+                                                         name=model_name,
+                                                         gid=context.scene.b4b.group_id,
+                                                         nightmode=NightMode.MAXIS_NIGHT)
+                            if NightMode.DARK_NIGHT in self._active_nightmodes:
+                                Renderer.create_sc4model(fshgen_script,
+                                                         self._output_files.get(NightMode.DAY, []) + self._output_files[NightMode.DARK_NIGHT],
+                                                         name=model_name,
+                                                         gid=context.scene.b4b.group_id,
+                                                         nightmode=NightMode.DARK_NIGHT)
                         delete_intermediate_files = True
                         if delete_intermediate_files:
                             for files in self._output_files.values():

@@ -53,7 +53,7 @@ class MainPanel(bpy.types.Panel):
         day_night.prop(context.scene.b4b, 'render_day_night', expand=False)
         if not context.window_manager.b4b.is_rendering:
             text = (B4BRender.bl_label if not context.scene.b4b.render_current_view_only
-                    else f"Render only zoom {z.value+1} {Rotation[context.window_manager.b4b.rotation].compass_name()}  (see {AdvancedPanel.bl_label})")
+                    else f"Render only Zoom {z.value+1} {Rotation[context.window_manager.b4b.rotation].compass_name()} {NightMode[context.window_manager.b4b.nightmode].label()}  (see {AdvancedPanel.bl_label})")
             self.layout.operator(Operators.RENDER.value[0], text=text)
         else:
             progress_bar = layout.row(align=True)
