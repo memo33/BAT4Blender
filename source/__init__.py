@@ -1,5 +1,5 @@
 import bpy
-from .GUI import B4BWmProps, B4BSceneProps, MainPanel, SuperSamplingPanel, PostProcessPanel, AdvancedPanel, B4BPreferences
+from .GUI import B4BWmProps, B4BSceneProps, MainPanel, SuperSamplingPanel, PostProcessPanel, AdvancedPanel, B4BPreferences, DayNightSelectMenu
 from . import GUI_ops
 
 bl_info = {
@@ -27,6 +27,7 @@ def register():
     bpy.utils.register_class(SuperSamplingPanel)
     bpy.utils.register_class(PostProcessPanel)
     bpy.utils.register_class(AdvancedPanel)
+    bpy.utils.register_class(DayNightSelectMenu)
     bpy.utils.register_class(GUI_ops.B4BPreview)
     bpy.utils.register_class(GUI_ops.B4BPreviewDownSampling)
     bpy.utils.register_class(GUI_ops.B4BRender)
@@ -53,6 +54,7 @@ def unregister():
     bpy.utils.unregister_class(SuperSamplingPanel)
     bpy.utils.unregister_class(PostProcessPanel)
     bpy.utils.unregister_class(AdvancedPanel)
+    bpy.utils.unregister_class(DayNightSelectMenu)
     bpy.utils.unregister_class(GUI_ops.B4BPreview)
     bpy.utils.unregister_class(GUI_ops.B4BPreviewDownSampling)
     bpy.utils.unregister_class(GUI_ops.B4BRender)

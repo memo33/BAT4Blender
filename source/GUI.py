@@ -49,8 +49,11 @@ class MainPanel(bpy.types.Panel):
         grp.operator(Operators.GID_RANDOMIZE.value[0], text='', icon='FILE_REFRESH')
         hd = layout.row()
         hd.prop(context.scene.b4b, 'hd', expand=True)
-        day_night = layout.row()
-        day_night.prop(context.scene.b4b, 'render_day_night', expand=False)
+        day_night = layout.row(align=True).split(factor=.333, align=False)
+        day_night.label(text="Day/Night:")
+        day_night_name = day_night.enum_item_name(context.scene.b4b, 'render_day_night', context.scene.b4b.render_day_night)
+        day_night.menu(DayNightSelectMenu.bl_idname, text=day_night_name)  # using a custom menu instead of `prop` to allow disabling some enum items
+
         if not context.window_manager.b4b.is_rendering:
             text = (B4BRender.bl_label if not context.scene.b4b.render_current_view_only
                     else f"Render only Zoom {z.value+1} {Rotation[context.window_manager.b4b.rotation].compass_name()} {NightMode[context.window_manager.b4b.nightmode].label()}  (see {AdvancedPanel.bl_label})")
@@ -66,7 +69,7 @@ class MainPanel(bpy.types.Panel):
 
 class SuperSamplingPanel(bpy.types.Panel):
     """A subpanel for BAT4Blender scene context of the properties editor"""
-    bl_label = "Super-Sampling"
+    bl_label = ""  # "Super-Sampling"
     bl_idname = 'SCENE_PT_b4b_supersampling'
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
@@ -76,7 +79,7 @@ class SuperSamplingPanel(bpy.types.Panel):
 
     def draw_header(self, context):
         layout = self.layout
-        layout.prop(context.scene.b4b, 'supersampling_enabled', icon_only=True)
+        layout.prop(context.scene.b4b, 'supersampling_enabled', icon_only=False)
 
     def draw(self, context):
         layout = self.layout
@@ -97,7 +100,7 @@ class SuperSamplingPanel(bpy.types.Panel):
 
 class PostProcessPanel(bpy.types.Panel):
     """A subpanel for BAT4Blender scene context of the properties editor"""
-    bl_label = "Post-Processing"
+    bl_label = ""  # "Post-Processing": empty string as it does not seem to allow gray-out when disabled
     bl_idname = 'SCENE_PT_b4b_postprocess'
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
@@ -107,14 +110,15 @@ class PostProcessPanel(bpy.types.Panel):
 
     def draw_header(self, context):
         layout = self.layout
-        layout.prop(context.scene.b4b, 'postproc_enabled', icon_only=True)
+        layout.prop(context.scene.b4b, 'postproc_enabled', icon_only=False)
+        layout.enabled = int(context.scene.b4b.render_day_night) & (1 << NightMode.DAY.value) != 0
 
     def draw(self, context):
         layout = self.layout
         layout.label(text="SC4Model Creation")
+        layout.enabled = context.scene.b4b.postproc_enabled
         row = layout.row()
         row.prop(context.preferences.addons[__package__].preferences, 'fshgen_path', text="fshgen")
-        row.enabled = context.scene.b4b.postproc_enabled
 
 
 class AdvancedPanel(bpy.types.Panel):
@@ -195,13 +199,15 @@ class B4BSceneProps(bpy.types.PropertyGroup):
             (str(flags), label, desc, '', flags) for label, desc, flags in [
                 ("Day only", "No night lights", 1 << NightMode.DAY.value),
                 ("Day & MN", "Day and Maxis night", 1 << NightMode.DAY.value | 1 << NightMode.MAXIS_NIGHT.value),
+                ("MN only", "Maxis night (incompatible with SC4Model creation)", 1 << NightMode.MAXIS_NIGHT.value),
                 ("Day & DN", "Day and dark night", 1 << NightMode.DAY.value | 1 << NightMode.DARK_NIGHT.value),
+                ("DN only", "Dark night (incompatible with SC4Model creation)", 1 << NightMode.DARK_NIGHT.value),
                 ("Day & MN & DN", "Day and both Maxis/dark night", 1 << NightMode.DAY.value | 1 << NightMode.MAXIS_NIGHT.value | 1 << NightMode.DARK_NIGHT.value),
             ]
         ],
         default=str(1 << NightMode.DAY.value),
         name="Day/Night",
-        description="Select day and night modes to render",
+        # description="Select day and night modes to render",
     )
 
     supersampling_enabled: bpy.props.BoolProperty(
@@ -233,7 +239,7 @@ class B4BSceneProps(bpy.types.PropertyGroup):
     postproc_enabled: bpy.props.BoolProperty(
         default=False,
         name="Post-Processing",
-        description="When enabled, create SC4Model after rendering and delete intermediate files",
+        description="When enabled, create SC4Model after rendering and delete intermediate files (requires Day render)",
     )
 
     render_current_view_only: bpy.props.BoolProperty(
@@ -268,3 +274,21 @@ class B4BPreferences(bpy.types.AddonPreferences):
         desc = self.__annotations__['fshgen_path'].keywords['description']
         layout.label(text=f"{desc}.")
         layout.prop(self, 'fshgen_path')
+
+
+class DayNightSelectMenu(bpy.types.Menu):
+    bl_label = "Day/Night"
+    bl_idname = "SCENE_MT_b4b_select_day_night"
+    bl_context = 'scene'
+    bl_description = "Select day and night modes to render"
+
+    def draw(self, context):
+        items = context.scene.b4b.bl_rna.properties['render_day_night'].enum_items_static
+        pp = context.scene.b4b.postproc_enabled
+        for item in items:
+            item_layout = self.layout.row(align=True)
+            item_layout.enabled = not pp or (item.value & (1 << NightMode.DAY.value) != 0)
+            text = item.name if item_layout.enabled else f"{item.name} (disable Post-Processing)"
+            item_layout.prop_enum(context.scene.b4b, 'render_day_night', value=item.identifier, text=text)
+        self.layout.separator()
+        self.layout.label(text=self.bl_label)

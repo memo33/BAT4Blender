@@ -62,10 +62,14 @@ Notes
   ```bash
   # Day only
   fshgen import --output model.SC4Model --force --with-BAT-models --format Dxt1 --gid 0xffffffff *.obj *_Day.png
-  # Maxis night
+
+  # Maxis Night and Dark Night
   fshgen import --output model-MN.SC4Model --force --with-BAT-models --format Dxt1 --gid 0xffffffff *.obj *_Day.png *_MN.png
-  # dark night
   fshgen import --output model-DN.SC4Model --force --with-BAT-models --format Dxt1 --gid 0xffffffff *.obj *_Day.png *_DN.png
+
+  # Alternatively, append MN/DN textures to existing SC4Model files
+  fshgen import --output model-MN.SC4Model --append --format Dxt1 --gid 0xffffffff *_MN.png
+  fshgen import --output model-DN.SC4Model --append --format Dxt1 --gid 0xffffffff *_DN.png
   ```
   This is executed automatically if Post-Processing is enabled (see above).
 - [x] showing progress while rendering: Go to the Rendering workspace to see the current image. Press ESC to cancel rendering.
