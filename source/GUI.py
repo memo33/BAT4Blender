@@ -21,7 +21,7 @@ class MainPanel(bpy.types.Panel):
         zoom = layout.row()
         zoom.prop(context.window_manager.b4b, 'zoom', expand=True)
         night = layout.row()
-        night.prop(context.window_manager.b4b, 'nightmode', expand=True)
+        night.prop(context.window_manager.b4b, 'night', expand=True)
 
         self.layout.operator(Operators.PREVIEW.value[0])
 
@@ -56,7 +56,7 @@ class MainPanel(bpy.types.Panel):
 
         if not context.window_manager.b4b.is_rendering:
             text = (B4BRender.bl_label if not context.scene.b4b.render_current_view_only
-                    else f"Render only Zoom {z.value+1} {Rotation[context.window_manager.b4b.rotation].compass_name()} {NightMode[context.window_manager.b4b.nightmode].label()}  (see {AdvancedPanel.bl_label})")
+                    else f"Render only Zoom {z.value+1} {Rotation[context.window_manager.b4b.rotation].compass_name()} {NightMode[context.window_manager.b4b.night].label()}  (see {AdvancedPanel.bl_label})")
             self.layout.operator(Operators.RENDER.value[0], text=text)
         else:
             progress_bar = layout.row(align=True)
@@ -163,7 +163,7 @@ class B4BWmProps(bpy.types.PropertyGroup):
         default=Zoom.FIVE.value + 1,
     )
 
-    nightmode: bpy.props.EnumProperty(
+    night: bpy.props.EnumProperty(
         items=[
             (NightMode.DAY.name, 'Day', 'day light', '', NightMode.DAY.value),
             (NightMode.MAXIS_NIGHT.name, 'MN', 'Maxis night', '', NightMode.MAXIS_NIGHT.value),

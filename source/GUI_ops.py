@@ -67,7 +67,7 @@ class B4BRender(bpy.types.Operator):
         context = bpy.context
         self._orig_zoom = Zoom[context.window_manager.b4b.zoom]
         self._orig_rotation = Rotation[context.window_manager.b4b.rotation]
-        self._orig_nightmode = NightMode[context.window_manager.b4b.nightmode]
+        self._orig_nightmode = NightMode[context.window_manager.b4b.night]
         day_night_flags = int(context.scene.b4b.render_day_night)
         if context.scene.b4b.render_current_view_only:
             self._active_nightmodes = [self._orig_nightmode]
@@ -181,7 +181,7 @@ class B4BRender(bpy.types.Operator):
             self._finished = True
             bpy.context.window_manager.b4b.zoom = self._orig_zoom.name
             bpy.context.window_manager.b4b.rotation = self._orig_rotation.name
-            bpy.context.window_manager.b4b.nightmode = self._orig_nightmode.name
+            bpy.context.window_manager.b4b.night = self._orig_nightmode.name
             bpy.context.window_manager.b4b.is_rendering = False
             bpy.context.window_manager.update_tag()  # so that the UI display of drivers depending on e.g. `b4b.rotation` switch back to the original value again
             self._redraw_areas(area_types=set([
@@ -210,7 +210,7 @@ class B4BRender(bpy.types.Operator):
         print(f"Step ({self._step+1}/{len(self._steps)}): Zoom {z.value+1} {v.name} {nightmode.label()}")
         context.window_manager.b4b.zoom = z.name
         context.window_manager.b4b.rotation = v.name
-        context.window_manager.b4b.nightmode = nightmode.name
+        context.window_manager.b4b.night = nightmode.name
         context.window_manager.b4b.progress = 100 * self._step / len(self._steps)  # TODO consider non-linearity
         context.window_manager.b4b.progress_label = f"({self._step+1}/{len(self._steps)}) Zoom {z.value+1} {v.name} {nightmode.label()}"
         model_name = blend_file_name()

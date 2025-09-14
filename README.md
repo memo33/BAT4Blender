@@ -41,8 +41,9 @@ Notes
   - Right click the property and _Edit Driver_.
   - Set _Type_ to _Scripted Expression_.
   - Adjust the _Expression_. Examples:
-    - `10.0 if nightmode == 0 else 2.5` for a Float value
-    - `nightmode != 0` for a Boolean value
+    - `2.5 if night else 10.0` for a Float value
+    - `not night` for a Boolean value
+    - `1.5 if night == 2 else 2.5 if night == 1 else 10.0` to distinguish between DN, MN and Day
   - Copy the driver to any other property that should use the same expression.
 
 - Click "Render all zooms & rotations" to render images and export LODs. They are saved in your current working directory from which Blender was launched.
