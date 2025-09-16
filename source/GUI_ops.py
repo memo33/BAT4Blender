@@ -10,6 +10,7 @@ from bpy.props import StringProperty
 import queue
 import sys
 from pathlib import Path
+import threading
 
 
 # The OK button in the error dialog
@@ -84,7 +85,9 @@ class B4BRender(bpy.types.Operator):
     def _post_handler(self, scene, depsgraph):
         r"""Runs after each rendering call.
         """
+        # assert threading.current_thread() is not threading.main_thread()
         def f():
+            assert threading.current_thread() is threading.main_thread()
             z, v, nightmode = self._steps[self._step]
             self._output_files[nightmode].extend(Renderer.render_post(z, v, scene.b4b.group_id, *self._render_post_args))
             self._render_post_args = None
@@ -141,6 +144,7 @@ class B4BRender(bpy.types.Operator):
         self._execution_queue.put(function)
 
     def execute(self, context):
+        assert threading.current_thread() is threading.main_thread(), "BAT4Blender expected to execute Render operator only on main thread"
         if context.window_manager.b4b.is_rendering:
             print("A rendering operation is already in progress.")
             return {'FINISHED'}
@@ -173,6 +177,7 @@ class B4BRender(bpy.types.Operator):
             return {'PASS_THROUGH'}  # important for render function to be cancelable
 
     def execute_queue_loop(self):
+        assert threading.current_thread() is threading.main_thread()
         if self._cancelled or self._step >= len(self._steps):
             # cleanup, then finish
             bpy.app.handlers.render_post.remove(self._post_handler)
@@ -205,6 +210,7 @@ class B4BRender(bpy.types.Operator):
             return self._interval  # calls `execute_queue_loop` again after _interval
 
     def handle_next_step(self):
+        assert threading.current_thread() is threading.main_thread()
         context = bpy.context
         z, v, nightmode = self._steps[self._step]
         print(f"Step ({self._step+1}/{len(self._steps)}): Zoom {z.value+1} {v.name} {nightmode.label()}")
@@ -229,6 +235,7 @@ class B4BRender(bpy.types.Operator):
         # so slicing rendered image is done later in post processing after rendering finished.
         # Likewise, slicing LODs is done in preprocessing.
         def f():  # executing this delayed seems to be important to avoid deadlocks
+            assert threading.current_thread() is threading.main_thread()
             layer = bpy.context.view_layer  # we choose the active layer for rendering if enabled in 'Use for Rendering', otherwise the default layer
             kwds = dict(layer=layer.name) if layer.use else {}
             orig_display_type = bpy.context.preferences.view.render_display_type
