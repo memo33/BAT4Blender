@@ -3,6 +3,7 @@ import os
 
 tid_fsh = "7ab50e44"
 tid_s3d = "5ad0e817"
+tid_xml = "88777601"
 
 
 def instance_id(z, v, count, is_night=False):
@@ -18,10 +19,10 @@ def instance_id(z, v, count, is_night=False):
     return iid
 
 
-def tgi_formatter(gid: str, z, v, count, is_model=False, prefix=False, is_night=False):
+def tgi_formatter(gid: str, z, v, count, is_model=False, prefix=False, is_night=False, is_xml=False, separator="_"):
     iid = instance_id(z, v, count, is_night=is_night)
-    return "_".join(f"0x{i}" if prefix else i for i in [
-        (tid_s3d if is_model else tid_fsh),
+    return separator.join(f"0x{i}" if prefix else i for i in [
+        (tid_s3d if is_model else tid_xml if is_xml else tid_fsh),
         gid,
         f"{iid:08x}",
     ])

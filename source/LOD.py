@@ -20,9 +20,13 @@ class LOD:
         # TODO this does not take hide_render state of collections into account yet
         for obj in bpy.context.scene.objects:
             if obj.type == 'MESH' and (not obj.hide_render) and obj.visible_camera:  # the latter is only available with Cycles (Object > Visibility > Ray Visibility)
-                bbox_corners = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
-                b_boxes.append(bbox_corners)
+                b_boxes.append(LOD.get_obj_bound_box(obj))
         return b_boxes
+
+    @staticmethod
+    def get_obj_bound_box(obj):
+        bbox_corners = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
+        return bbox_corners
 
     @staticmethod
     def get_min_max_xyz(b_boxes: List[List[Any]]) -> List[Any]:
@@ -43,6 +47,12 @@ class LOD:
                 if v[2] > max_z:
                     max_z = v[2]
         return [min_x, max_x, min_y, max_y, min_z, max_z]
+
+    @staticmethod
+    def get_dimensions_xyz(lod):
+        b_box = LOD.get_obj_bound_box(lod)
+        min_x, max_x, min_y, max_y, min_z, max_z = LOD.get_min_max_xyz([b_box])
+        return max_x - min_x, max_y - min_y, max_z - min_z
 
     @staticmethod
     def get_mesh_cube(zoom: Zoom) -> object:

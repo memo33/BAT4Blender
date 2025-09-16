@@ -8,6 +8,7 @@ from .Config import LODZ_NAME, CAM_NAME
 from .Utils import tgi_formatter, get_relative_path_for, translate, instance_id, b4b_collection, find_object, BAT4BlenderUserError
 from .Enums import Zoom, Rotation, NightMode
 from .Canvas import Canvas
+from .LOD import LOD
 
 # sd default
 zoom_sizes = [8, 16, 32, 73, 146]  # from SFCameraRigHD.ms (horizontal extent of 16×16 cell in pixels)
@@ -46,7 +47,6 @@ class Renderer:
         r"""This function is invoked by the modal operator before the rendering of this view started.
         We do some setup such as slicing and exporting the LODs.
         """
-        from .LOD import LOD
         bpy.context.scene.render.image_settings.file_format = 'PNG'
         bpy.context.scene.render.image_settings.color_mode = 'RGBA'
         bpy.context.scene.render.film_transparent = True
@@ -257,6 +257,27 @@ class Renderer:
             coordinates = [lod.matrix_world @ v.co for v in lod.data.vertices]
         loc, scale = cam.camera_fit_coords(dg, [vi for v in coordinates for vi in v])
         return scale
+
+    @staticmethod
+    def create_xml(name: str, gid: str):
+        import html
+        lod1 = find_object(b4b_collection(), LODZ_NAME[Zoom.ONE.value])
+        dim_x, dim_y, dim_z = LOD.get_dimensions_xyz(lod1)
+        model_tgi = tgi_formatter(gid, 0, 0, 0, is_model=True, prefix=True, separator="-")
+        text = (
+rf"""<?xml version="1.0" encoding="UTF-8"?>
+
+<SC4PLUGINDESC Name="{html.escape(name)}" ResKey="{model_tgi}" Version="2" BATVersion="0x00001073" Quality="3">
+<DIMENSIONS Width="{dim_x:.3f}" Height="{dim_z:.3f}" Depth="{dim_y:.3f}">
+</DIMENSIONS>
+</SC4PLUGINDESC>
+"""
+        )
+        xml_tgi = tgi_formatter(gid, 0, 0, 0, is_xml=True, prefix=False)
+        xml_path = get_relative_path_for(f"{xml_tgi}.xml")
+        print(f"Exporting XML file: {xml_path}")
+        with open(xml_path, 'w') as f:
+            f.write(text)
 
     @staticmethod
     def create_sc4model(fshgen_script: str, files: list[str], name: str, gid: str, nightmode: NightMode):

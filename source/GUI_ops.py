@@ -96,13 +96,17 @@ class B4BRender(bpy.types.Operator):
             if not self._cancelled:
                 if self._step < len(self._steps):
                     self.handle_next_step()
-                else:  # after last step, create SC4Model
+                else:  # after last step, create XML and SC4Model
                     context = bpy.context
+                    model_name = blend_file_name()
+
+                    if NightMode.DAY in self._active_nightmodes:  # only export XML together with the LODs during Day render
+                        Renderer.create_xml(name=model_name, gid=context.scene.b4b.group_id)
+
                     if context.scene.b4b.postproc_enabled:
                         context.window_manager.b4b.progress = 100
                         context.window_manager.b4b.progress_label = "Creating SC4Model file"
                         fshgen_script = context.preferences.addons[__package__].preferences.fshgen_path or "fshgen"
-                        model_name = blend_file_name()
                         if self._active_nightmodes == [NightMode.DAY]:  # Day only
                             Renderer.create_sc4model(fshgen_script,
                                                      self._output_files[NightMode.DAY],

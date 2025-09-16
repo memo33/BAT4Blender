@@ -80,3 +80,4 @@ Notes
   This is executed automatically if Post-Processing is enabled (see above).
 - [x] showing progress while rendering: Go to the Rendering workspace to see the current image. Press ESC to cancel rendering.
 - [x] super-sampling (for sharper renderings)
+- [x] generate `SC4PLUGINDESC` XML file
