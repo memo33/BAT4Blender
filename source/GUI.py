@@ -163,6 +163,23 @@ class B4BWmProps(bpy.types.PropertyGroup):
         default=Zoom.FIVE.value + 1,
     )
 
+    def _update_night(self, context):
+        import threading
+        assert threading.current_thread() is threading.main_thread(), "BAT4Blender expects `night` property to be updated only from main thread"  # as a precaution, since in general properties might be updated from other threads
+        nightmode = NightMode[self.night]
+        is_night = nightmode != NightMode.DAY
+        for coll in bpy.data.collections:
+            if coll.name == 'Night' or coll.name.startswith('Night.'):
+                coll.hide_render = not is_night
+                coll.hide_viewport = not is_night
+                if coll.color_tag == 'NONE':
+                    coll.color_tag = 'COLOR_06'  # purple
+            elif coll.name == 'Day' or coll.name.startswith('Day.'):
+                coll.hide_render = is_night
+                coll.hide_viewport = is_night
+                if coll.color_tag == 'NONE':
+                    coll.color_tag = 'COLOR_06'  # purple
+
     night: bpy.props.EnumProperty(
         items=[
             (NightMode.DAY.name, 'Day', 'day light', '', NightMode.DAY.value),
@@ -170,6 +187,7 @@ class B4BWmProps(bpy.types.PropertyGroup):
             (NightMode.DARK_NIGHT.name, 'DN', 'dark night', '', NightMode.DARK_NIGHT.value),
         ],
         default=NightMode.DAY.value,
+        update=_update_night,
     )
 
     is_rendering: bpy.props.BoolProperty(default=False, name="Render In Progress")

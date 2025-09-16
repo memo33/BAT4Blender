@@ -176,6 +176,11 @@ class B4BRender(bpy.types.Operator):
         else:
             return {'PASS_THROUGH'}  # important for render function to be cancelable
 
+    def _switch_view(self, zoom: Zoom, rotation: Rotation, nightmode: NightMode):
+        bpy.context.window_manager.b4b.zoom = zoom.name
+        bpy.context.window_manager.b4b.rotation = rotation.name
+        bpy.context.window_manager.b4b.night = nightmode.name
+
     def execute_queue_loop(self):
         assert threading.current_thread() is threading.main_thread()
         if self._cancelled or self._step >= len(self._steps):
@@ -184,9 +189,7 @@ class B4BRender(bpy.types.Operator):
             bpy.app.handlers.render_cancel.remove(self._cancel_handler)
             print('CANCELLED' if self._cancelled else 'FINISHED')
             self._finished = True
-            bpy.context.window_manager.b4b.zoom = self._orig_zoom.name
-            bpy.context.window_manager.b4b.rotation = self._orig_rotation.name
-            bpy.context.window_manager.b4b.night = self._orig_nightmode.name
+            self._switch_view(self._orig_zoom, self._orig_rotation, self._orig_nightmode)
             bpy.context.window_manager.b4b.is_rendering = False
             bpy.context.window_manager.update_tag()  # so that the UI display of drivers depending on e.g. `b4b.rotation` switch back to the original value again
             self._redraw_areas(area_types=set([
@@ -214,9 +217,7 @@ class B4BRender(bpy.types.Operator):
         context = bpy.context
         z, v, nightmode = self._steps[self._step]
         print(f"Step ({self._step+1}/{len(self._steps)}): Zoom {z.value+1} {v.name} {nightmode.label()}")
-        context.window_manager.b4b.zoom = z.name
-        context.window_manager.b4b.rotation = v.name
-        context.window_manager.b4b.night = nightmode.name
+        self._switch_view(z, v, nightmode)
         context.window_manager.b4b.progress = 100 * self._step / len(self._steps)  # TODO consider non-linearity
         context.window_manager.b4b.progress_label = f"({self._step+1}/{len(self._steps)}) Zoom {z.value+1} {v.name} {nightmode.label()}"
         model_name = blend_file_name()

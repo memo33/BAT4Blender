@@ -46,6 +46,10 @@ Notes
     - `1.5 if night == 2 else 2.5 if night == 1 else 10.0` to distinguish between DN, MN and Day
   - Copy the driver to any other property that should use the same expression.
 
+- `Day`/`Night` collections: This is an easy way to hide some objects for the day or for the night render.
+  - Create collections named `Day` and `Night` and place your objects inside them.
+    These collections are enabled/disabled automatically by BAT4Blender when switching between day and night.
+
 - Click "Render all zooms & rotations" to render images and export LODs. They are saved in your current working directory from which Blender was launched.
 
 ## Roadmap
@@ -57,6 +61,7 @@ Notes
 - [x] zoom-dependent LODs
 - [ ] renderer settings (lighting/shading/materials/…)
 - [x] nightlights
+- [x] Day/Night collections
 - [ ] darknite settings
 - [x] HD rendering
 - [x] conversion of LODs to S3D: Using [fshgen](https://github.com/memo33/fshgen/releases):
