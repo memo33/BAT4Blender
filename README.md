@@ -34,6 +34,7 @@ Notes
 
 - Post-Processing (`Properties` -> `Scene` -> `BAT4Blender`):
   Enable this to automatically convert the exported LODs (OBJ files) and rendered images (PNG files) to an SC4Model file (requires fshgen).
+  (Currently, the XML file gets generated as a separate file. You need to manually add it to the SC4Model file, using a tool like ilive's Reader.)
 
 - Night lights: There's no pre-configured rig yet, but you can customize the night renderings using Drivers:
   - Right click on the `Day | MN | DN` panel and _Copy as New Driver_.
