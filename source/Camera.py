@@ -47,8 +47,8 @@ class Camera:
     @staticmethod
     def add_to_scene():
         if find_object(b4b_collection(), CAM_NAME) is None:
-            v = Rotation[bpy.context.window_manager.b4b.rotation]
-            z = Zoom[bpy.context.window_manager.b4b.zoom]
+            v = Rotation[bpy.context.scene.b4b.rotation]
+            z = Zoom[bpy.context.scene.b4b.zoom]
             (location, rotation) = Camera.get_location_and_rotation(v, z)
             Camera.set_camera(location, rotation)
 

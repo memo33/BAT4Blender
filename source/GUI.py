@@ -16,19 +16,19 @@ class MainPanel(bpy.types.Panel):
         # Create a simple row.
         layout.label(text="Rotation")
         rot = layout.row()
-        rot.prop(context.window_manager.b4b, 'rotation', expand=True)
+        rot.prop(context.scene.b4b, 'rotation', expand=True)
         layout.label(text="Zoom")
         zoom = layout.row()
-        zoom.prop(context.window_manager.b4b, 'zoom', expand=True)
+        zoom.prop(context.scene.b4b, 'zoom', expand=True)
         night = layout.row()
-        night.prop(context.window_manager.b4b, 'night', expand=True)
+        night.prop(context.scene.b4b, 'night', expand=True)
 
         self.layout.operator(Operators.PREVIEW.value[0])
 
         layout.label(text="LODs")
         lod = layout.row(align=True)
         lod.operator(Operators.LOD_ADD.value[0], text="Add")
-        z = Zoom[context.window_manager.b4b.zoom]
+        z = Zoom[context.scene.b4b.zoom]
         lod.operator(Operators.LOD_FIT_ZOOM.value[0], text=f"Fit Z{z.value+1}")
         lod.operator(Operators.LOD_DELETE.value[0], text="Delete")
         # lod.operator(Operators.LOD_EXPORT.value[0], text="Export .OBJ")  # LODs are exported during rendering
@@ -56,7 +56,7 @@ class MainPanel(bpy.types.Panel):
 
         if not context.window_manager.b4b.is_rendering:
             text = (B4BRender.bl_label if not context.scene.b4b.render_current_view_only
-                    else f"Render only Zoom {z.value+1} {Rotation[context.window_manager.b4b.rotation].compass_name()} {NightMode[context.window_manager.b4b.night].label()}  (see {AdvancedPanel.bl_label})")
+                    else f"Render only Zoom {z.value+1} {Rotation[context.scene.b4b.rotation].compass_name()} {NightMode[context.scene.b4b.night].label()}  (see {AdvancedPanel.bl_label})")
             self.layout.operator(Operators.RENDER.value[0], text=text)
         else:
             progress_bar = layout.row(align=True)
@@ -140,6 +140,27 @@ class AdvancedPanel(bpy.types.Panel):
 class B4BWmProps(bpy.types.PropertyGroup):
     r"""These properties are stored on the WindowManager, so affect all open scenes, but are not persistent.
     """
+    is_rendering: bpy.props.BoolProperty(default=False, name="Render In Progress")
+    progress: bpy.props.FloatProperty(name="Progress", subtype='PERCENTAGE', soft_min=0, soft_max=100, precision=0)
+    progress_label: bpy.props.StringProperty()
+
+
+class B4BSceneProps(bpy.types.PropertyGroup):
+    r"""These properties are persistently stored for each individual Scene in the .blend file.
+    """
+
+    group_id: bpy.props.StringProperty(
+            name="Group ID",
+            description="the Group ID as provided by gmax",
+            default="")
+
+    hd: bpy.props.EnumProperty(
+        items=[
+            ('SD', 'SD', "standard definition", '', 0),
+            ('HD', 'HD', "high definition (doubles zoom 5 resolution)", '', 1),
+        ],
+        default='SD',
+    )
 
     # (unique identifier, property name, property description, icon identifier, number)
     rotation: bpy.props.EnumProperty(
@@ -188,28 +209,6 @@ class B4BWmProps(bpy.types.PropertyGroup):
         ],
         default=NightMode.DAY.value,
         update=_update_night,
-    )
-
-    is_rendering: bpy.props.BoolProperty(default=False, name="Render In Progress")
-    progress: bpy.props.FloatProperty(name="Progress", subtype='PERCENTAGE', soft_min=0, soft_max=100, precision=0)
-    progress_label: bpy.props.StringProperty()
-
-
-class B4BSceneProps(bpy.types.PropertyGroup):
-    r"""These properties are persistently stored for each individual Scene in the .blend file.
-    """
-
-    group_id: bpy.props.StringProperty(
-            name="Group ID",
-            description="the Group ID as provided by gmax",
-            default="")
-
-    hd: bpy.props.EnumProperty(
-        items=[
-            ('SD', 'SD', "standard definition", '', 0),
-            ('HD', 'HD', "high definition (doubles zoom 5 resolution)", '', 1),
-        ],
-        default='SD',
     )
 
     render_day_night: bpy.props.EnumProperty(

@@ -57,8 +57,8 @@ class Renderer:
         lod = find_object(coll, LODZ_NAME[z.value])
 
         # The LODs must not depend on nightmode, so temporarily switch to day and only export when day
-        nightmode = NightMode[bpy.context.window_manager.b4b.night]
-        bpy.context.window_manager.b4b.night = NightMode.DAY.name
+        nightmode = NightMode[bpy.context.scene.b4b.night]
+        bpy.context.scene.b4b.night = NightMode.DAY.name
         should_export = nightmode == NightMode.DAY
 
         # Next, slice the LOD and export it.
@@ -89,7 +89,7 @@ class Renderer:
             bpy.data.meshes.remove(lod_slice.data)
         for mat in materials:
             bpy.data.materials.remove(mat)
-        bpy.context.window_manager.b4b.night = nightmode.name
+        bpy.context.scene.b4b.night = nightmode.name
 
         # Render the full image to a temporary location
         bpy.context.scene.render.use_border = False  # always render the full frame
@@ -110,7 +110,7 @@ class Renderer:
             return  # this can happen when rendering was cancelled
         if obj_path is not None:  # only defined for day
             yield obj_path
-        nightmode = NightMode[bpy.context.window_manager.b4b.night]
+        nightmode = NightMode[bpy.context.scene.b4b.night]
         if supersampling.enabled:
             downsampled_tmp_png_path = get_relative_path_for(f"{tgi_formatter(gid, z.value, v.value, 0, is_night=(nightmode != NightMode.DAY))}_{nightmode.label()}_downsampled.tmp.png")
             assert supersampling.magick_exe, """Location for "magick" executable not set"""
