@@ -66,9 +66,9 @@ class B4BRender(bpy.types.Operator):
         self._finished = False  # is set after last rendering step or after being cancelled
         self._exception = None
         context = bpy.context
-        self._orig_zoom = Zoom[context.window_manager.b4b.zoom]
-        self._orig_rotation = Rotation[context.window_manager.b4b.rotation]
-        self._orig_nightmode = NightMode[context.window_manager.b4b.night]
+        self._orig_zoom = Zoom[context.scene.b4b.zoom]
+        self._orig_rotation = Rotation[context.scene.b4b.rotation]
+        self._orig_nightmode = NightMode[context.scene.b4b.night]
         day_night_flags = int(context.scene.b4b.render_day_night)
         if context.scene.b4b.render_current_view_only:
             self._active_nightmodes = [self._orig_nightmode]
@@ -181,9 +181,9 @@ class B4BRender(bpy.types.Operator):
             return {'PASS_THROUGH'}  # important for render function to be cancelable
 
     def _switch_view(self, zoom: Zoom, rotation: Rotation, nightmode: NightMode):
-        bpy.context.window_manager.b4b.zoom = zoom.name
-        bpy.context.window_manager.b4b.rotation = rotation.name
-        bpy.context.window_manager.b4b.night = nightmode.name
+        bpy.context.scene.b4b.zoom = zoom.name
+        bpy.context.scene.b4b.rotation = rotation.name
+        bpy.context.scene.b4b.night = nightmode.name
 
     def execute_queue_loop(self):
         assert threading.current_thread() is threading.main_thread()
@@ -258,8 +258,8 @@ class B4BPreview(bpy.types.Operator):
     bl_label = "Preview"
 
     def execute(self, context):
-        v = Rotation[context.window_manager.b4b.rotation]
-        z = Zoom[context.window_manager.b4b.zoom]
+        v = Rotation[context.scene.b4b.rotation]
+        z = Zoom[context.scene.b4b.zoom]
         hd = context.scene.b4b.hd == 'HD'
         Rig.setup(v, z, hd=hd)
         # q: pass the context to the renderer? or just grab it from internals..
@@ -319,7 +319,7 @@ class B4BLODFitZoom(bpy.types.Operator):
     bl_label = "LOD fit for zoom"
 
     def execute(self, context):
-        z = Zoom[context.window_manager.b4b.zoom]
+        z = Zoom[context.scene.b4b.zoom]
         Rig.lod_fit(z)
         return {'FINISHED'}
 

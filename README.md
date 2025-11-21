@@ -53,6 +53,29 @@ Notes
 
 - Click "Render all zooms & rotations" to render images and export LODs. They are saved in your current working directory from which Blender was launched.
 
+## Light rig
+
+Once:
+- configure an Asset Libary: *Edit → Preferences → File Paths → Asset Libraries*:
+  - add new library `B4B_assets` with Relative Path to `assets` folder
+  - Import Method: *Link*
+
+Then:
+- Either start a new Blender project by creating a copy of the `template.blend` file.
+- Or update an existing .blend file as follows:
+  - enable Cycles: *Properties → Render → Scene → Render Engine → Cycles* (and adjust Max Samples for *Viewport* and *Render* as desired)
+  - disable Sun: *Outliner → b4b_sun → Disable in Renders + Hide in Viewport*
+  - add World (with new Sun):
+    - *Asset Browser → B4B_assets → b4b_world* (drag into Viewport)
+    - *Properties → World → Settings → Light Group → env_light → "+" Add Lightgroup* (adds the light group to View Layer Passes)
+  - enable additional View Layer Passes for compositing: *Properties → View Layer → Passes*:
+    - *Data → Include → Normal*
+    - *Light → Diffuse → Color*
+  - set up compositing:
+    - *Compositing → Compositor → Use Nodes*
+    - *Asset Browser → B4B_assets → b4b_compositing* (drag into Compositor)
+    - connect all the *Render Layers* and the *Composite* node
+
 ## Roadmap
 
 - [x] alpha version (camera positioning, LOD creation, rendering of small objects)
@@ -60,10 +83,10 @@ Notes
 - [x] slicing of LODs
 - [x] uv-mapping of LODs
 - [x] zoom-dependent LODs
-- [ ] renderer settings (lighting/shading/materials/…)
+- [x] renderer settings (lighting/shading/materials/…)
 - [x] nightlights
 - [x] Day/Night collections
-- [ ] darknite settings
+- [x] darknite settings
 - [x] HD rendering
 - [x] conversion of LODs to S3D: Using [fshgen](https://github.com/memo33/fshgen/releases):
   ```bash
