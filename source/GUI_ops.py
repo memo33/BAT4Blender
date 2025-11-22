@@ -1,8 +1,8 @@
 import bpy
 from .Enums import Operators, Rotation, Zoom, NightMode
 from .Rig import Rig
-from .LOD import LOD
 from .Sun import Sun
+from . import World
 from .Camera import Camera
 from .Renderer import Renderer, SuperSampling
 from .Utils import blend_file_name, BAT4BlenderUserError
@@ -368,6 +368,34 @@ class B4BCamDelete(bpy.types.Operator):
 
     def execute(self, context):
         Camera.delete_from_scene()
+        return {'FINISHED'}
+
+
+class B4BWorldSetup(bpy.types.Operator):
+    bl_idname = Operators.WORLD_SETUP.value[0]
+    bl_label = "WorldSetup"
+
+    def execute(self, context):
+        try:
+            World.setup_world(context=context)
+            self.report({'INFO'}, "Successfully configured World.")
+        except BAT4BlenderUserError as e:
+            print(str(e), file=sys.stderr)
+            self.report({'ERROR'}, str(e))  # consume user errors by reporting them in the UI
+        return {'FINISHED'}
+
+
+class B4BCompositingSetup(bpy.types.Operator):
+    bl_idname = Operators.COMPOSITING_SETUP.value[0]
+    bl_label = "CompositingSetup"
+
+    def execute(self, context):
+        try:
+            World.setup_compositing(context=context)
+            self.report({'INFO'}, "Successfully configured Compositing.")
+        except BAT4BlenderUserError as e:
+            print(str(e), file=sys.stderr)
+            self.report({'ERROR'}, str(e))  # consume user errors by reporting them in the UI
         return {'FINISHED'}
 
 

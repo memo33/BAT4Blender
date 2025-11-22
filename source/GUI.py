@@ -42,6 +42,9 @@ class MainPanel(bpy.types.Panel):
         sun = layout.row(align=True)
         sun.operator(Operators.SUN_ADD.value[0], text="Add")
         sun.operator(Operators.SUN_DELETE.value[0], text="Delete")
+        world = layout.row(align=True)
+        world.operator(Operators.WORLD_SETUP.value[0], text="Setup World")
+        world.operator(Operators.COMPOSITING_SETUP.value[0], text="Setup Compositing")
 
         layout.label(text="Render")
         grp = layout.row(align=True)

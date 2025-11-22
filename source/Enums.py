@@ -13,6 +13,8 @@ class Operators(Enum):
     SUN_DELETE = "object.b4b_sun_delete",
     CAM_ADD = "object.b4b_camera_add",
     CAM_DELETE = "object.b4b_camera_delete",
+    WORLD_SETUP = "object.b4b_world_setup",
+    COMPOSITING_SETUP = "object.b4b_compositing_setup",
     GID_RANDOMIZE = "object.b4b_gid_randomize",
 
 
