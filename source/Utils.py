@@ -64,11 +64,13 @@ def find_object(collection, name: str):
     return None
 
 
-def b4b_collection():
+def b4b_collection(create=True):
     from .Config import COLLECTION_NAME
     for coll in bpy.context.scene.collection.children:
         if coll.name.startswith(COLLECTION_NAME):
             return coll
+    if not create:
+        return None
     coll = bpy.data.collections.new(COLLECTION_NAME)
     bpy.context.scene.collection.children.link(coll)
     return coll
