@@ -1,6 +1,10 @@
 import bpy
 from .Enums import Operators, Rotation, Zoom, NightMode
 from .GUI_ops import B4BRender
+from . import Sun
+from .Config import WORLD_NAME, COMPOSITING_NAME, CAM_NAME
+from .Utils import b4b_collection, find_object
+import math
 
 
 class MainPanel(bpy.types.Panel):
@@ -16,33 +20,33 @@ class MainPanel(bpy.types.Panel):
         # Create a simple row.
         layout.label(text="Rotation")
         rot = layout.row()
-        rot.prop(context.window_manager.b4b, 'rotation', expand=True)
+        rot.prop(context.scene.b4b, 'rotation', expand=True)
         layout.label(text="Zoom")
         zoom = layout.row()
-        zoom.prop(context.window_manager.b4b, 'zoom', expand=True)
+        zoom.prop(context.scene.b4b, 'zoom', expand=True)
         night = layout.row()
-        night.prop(context.window_manager.b4b, 'night', expand=True)
+        night.prop(context.scene.b4b, 'night', expand=True)
 
         self.layout.operator(Operators.PREVIEW.value[0])
 
         layout.label(text="LODs")
         lod = layout.row(align=True)
         lod.operator(Operators.LOD_ADD.value[0], text="Add")
-        z = Zoom[context.window_manager.b4b.zoom]
+        z = Zoom[context.scene.b4b.zoom]
         lod.operator(Operators.LOD_FIT_ZOOM.value[0], text=f"Fit Z{z.value+1}")
         lod.operator(Operators.LOD_DELETE.value[0], text="Delete")
         # lod.operator(Operators.LOD_EXPORT.value[0], text="Export .OBJ")  # LODs are exported during rendering
 
-        layout.label(text="Camera")
-        cam = layout.row(align=True)
-        cam.operator(Operators.CAM_ADD.value[0], text="Add")
-        cam.operator(Operators.CAM_DELETE.value[0], text="Delete")
+        layout.label(text="Setup")
+        setup = layout.row(align=True)
+        icon = 'FILE_REFRESH' if (w := bpy.context.scene.world) is not None and w.name == WORLD_NAME else 'ADD'
+        setup.operator(Operators.WORLD_SETUP.value[0], text="World", icon=icon)
+        icon = 'FILE_REFRESH' if bpy.context.scene.use_nodes and COMPOSITING_NAME in bpy.data.node_groups else 'ADD'
+        setup.operator(Operators.COMPOSITING_SETUP.value[0], text="Compositing", icon=icon)
+        icon = 'FILE_REFRESH' if find_object(b4b_collection(), CAM_NAME) is not None else 'ADD'
+        setup.operator(Operators.CAM_SETUP.value[0], text="Camera", icon=icon)
 
-        layout.label(text="Sun")
-        sun = layout.row(align=True)
-        sun.operator(Operators.SUN_ADD.value[0], text="Add")
-        sun.operator(Operators.SUN_DELETE.value[0], text="Delete")
-
+        layout.separator()
         layout.label(text="Render")
         grp = layout.row(align=True)
         grp.prop(context.scene.b4b, 'group_id', text="Grp ID")
@@ -56,7 +60,7 @@ class MainPanel(bpy.types.Panel):
 
         if not context.window_manager.b4b.is_rendering:
             text = (B4BRender.bl_label if not context.scene.b4b.render_current_view_only
-                    else f"Render only Zoom {z.value+1} {Rotation[context.window_manager.b4b.rotation].compass_name()} {NightMode[context.window_manager.b4b.night].label()}  (see {AdvancedPanel.bl_label})")
+                    else f"Render only Zoom {z.value+1} {Rotation[context.scene.b4b.rotation].compass_name()} {NightMode[context.scene.b4b.night].label()}  (see {AdvancedPanel.bl_label})")
             self.layout.operator(Operators.RENDER.value[0], text=text)
         else:
             progress_bar = layout.row(align=True)
@@ -140,6 +144,27 @@ class AdvancedPanel(bpy.types.Panel):
 class B4BWmProps(bpy.types.PropertyGroup):
     r"""These properties are stored on the WindowManager, so affect all open scenes, but are not persistent.
     """
+    is_rendering: bpy.props.BoolProperty(default=False, name="Render In Progress")
+    progress: bpy.props.FloatProperty(name="Progress", subtype='PERCENTAGE', soft_min=0, soft_max=100, precision=0)
+    progress_label: bpy.props.StringProperty()
+
+
+class B4BSceneProps(bpy.types.PropertyGroup):
+    r"""These properties are persistently stored for each individual Scene in the .blend file.
+    """
+
+    group_id: bpy.props.StringProperty(
+            name="Group ID",
+            description="the Group ID as provided by gmax",
+            default="")
+
+    hd: bpy.props.EnumProperty(
+        items=[
+            ('SD', 'SD', "standard definition", '', 0),
+            ('HD', 'HD', "high definition (doubles zoom 5 resolution)", '', 1),
+        ],
+        default='SD',
+    )
 
     # (unique identifier, property name, property description, icon identifier, number)
     rotation: bpy.props.EnumProperty(
@@ -150,6 +175,17 @@ class B4BWmProps(bpy.types.PropertyGroup):
             (Rotation.WEST.name, 'W', 'West view', '', Rotation.WEST.value)
         ],
         default=Rotation.SOUTH.name
+    )
+
+    def _get_sun_angles(self):
+        _, s_y, s_z = Sun.get_sun_rotation(Rotation[self.rotation])
+        return -s_y + math.pi/2, -s_z + math.pi/2  # elevation, rotation
+
+    sun_angles: bpy.props.FloatVectorProperty(
+        description="Elevation and rotation of sun",
+        unit='ROTATION',
+        size=2,
+        get=_get_sun_angles,
     )
 
     zoom: bpy.props.EnumProperty(
@@ -188,28 +224,6 @@ class B4BWmProps(bpy.types.PropertyGroup):
         ],
         default=NightMode.DAY.value,
         update=_update_night,
-    )
-
-    is_rendering: bpy.props.BoolProperty(default=False, name="Render In Progress")
-    progress: bpy.props.FloatProperty(name="Progress", subtype='PERCENTAGE', soft_min=0, soft_max=100, precision=0)
-    progress_label: bpy.props.StringProperty()
-
-
-class B4BSceneProps(bpy.types.PropertyGroup):
-    r"""These properties are persistently stored for each individual Scene in the .blend file.
-    """
-
-    group_id: bpy.props.StringProperty(
-            name="Group ID",
-            description="the Group ID as provided by gmax",
-            default="")
-
-    hd: bpy.props.EnumProperty(
-        items=[
-            ('SD', 'SD', "standard definition", '', 0),
-            ('HD', 'HD', "high definition (doubles zoom 5 resolution)", '', 1),
-        ],
-        default='SD',
     )
 
     render_day_night: bpy.props.EnumProperty(

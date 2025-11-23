@@ -1,8 +1,7 @@
 import bpy
 from .Enums import Operators, Rotation, Zoom, NightMode
 from .Rig import Rig
-from .LOD import LOD
-from .Sun import Sun
+from . import World
 from .Camera import Camera
 from .Renderer import Renderer, SuperSampling
 from .Utils import blend_file_name, BAT4BlenderUserError
@@ -66,9 +65,9 @@ class B4BRender(bpy.types.Operator):
         self._finished = False  # is set after last rendering step or after being cancelled
         self._exception = None
         context = bpy.context
-        self._orig_zoom = Zoom[context.window_manager.b4b.zoom]
-        self._orig_rotation = Rotation[context.window_manager.b4b.rotation]
-        self._orig_nightmode = NightMode[context.window_manager.b4b.night]
+        self._orig_zoom = Zoom[context.scene.b4b.zoom]
+        self._orig_rotation = Rotation[context.scene.b4b.rotation]
+        self._orig_nightmode = NightMode[context.scene.b4b.night]
         day_night_flags = int(context.scene.b4b.render_day_night)
         if context.scene.b4b.render_current_view_only:
             self._active_nightmodes = [self._orig_nightmode]
@@ -181,9 +180,9 @@ class B4BRender(bpy.types.Operator):
             return {'PASS_THROUGH'}  # important for render function to be cancelable
 
     def _switch_view(self, zoom: Zoom, rotation: Rotation, nightmode: NightMode):
-        bpy.context.window_manager.b4b.zoom = zoom.name
-        bpy.context.window_manager.b4b.rotation = rotation.name
-        bpy.context.window_manager.b4b.night = nightmode.name
+        bpy.context.scene.b4b.zoom = zoom.name
+        bpy.context.scene.b4b.rotation = rotation.name
+        bpy.context.scene.b4b.night = nightmode.name
 
     def execute_queue_loop(self):
         assert threading.current_thread() is threading.main_thread()
@@ -252,19 +251,33 @@ class B4BRender(bpy.types.Operator):
         self.run_on_main_thread(f)
 
 
+class B4BCamSetup(bpy.types.Operator):
+    bl_description = "Update the camera position for the current view in the View Port. For rendering, this is always done automatically"
+    bl_idname = Operators.CAM_SETUP.value[0]
+    bl_label = "CamSetup"
+
+    def execute(self, context):
+        v = Rotation[context.scene.b4b.rotation]
+        z = Zoom[context.scene.b4b.zoom]
+        hd = context.scene.b4b.hd == 'HD'
+        Rig.setup(v, z, hd=hd)
+        Renderer.camera_manoeuvring(z, hd=hd, supersampling=SuperSampling.for_preview(context))
+        self.report({'INFO'}, "Successfully positioned Camera.")
+        return {'FINISHED'}
+
+
 class B4BPreview(bpy.types.Operator):
     bl_description = r"""Render a preview image for the current zoom"""
     bl_idname = Operators.PREVIEW.value[0]
     bl_label = "Preview"
 
     def execute(self, context):
-        v = Rotation[context.window_manager.b4b.rotation]
-        z = Zoom[context.window_manager.b4b.zoom]
+        v = Rotation[context.scene.b4b.rotation]
+        z = Zoom[context.scene.b4b.zoom]
         hd = context.scene.b4b.hd == 'HD'
         Rig.setup(v, z, hd=hd)
         # q: pass the context to the renderer? or just grab it from internals..
-        supersampling = SuperSampling(enabled=(context.scene.b4b.supersampling_enabled and context.scene.b4b.supersampling_preview != 'no_supersampling'))
-        Renderer.generate_preview(z, hd=hd, supersampling=supersampling)
+        Renderer.generate_preview(z, hd=hd, supersampling=SuperSampling.for_preview(context))
         return {'FINISHED'}
 
 
@@ -319,7 +332,7 @@ class B4BLODFitZoom(bpy.types.Operator):
     bl_label = "LOD fit for zoom"
 
     def execute(self, context):
-        z = Zoom[context.window_manager.b4b.zoom]
+        z = Zoom[context.scene.b4b.zoom]
         Rig.lod_fit(z)
         return {'FINISHED'}
 
@@ -335,39 +348,33 @@ class B4BLODDelete(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class B4BSunDelete(bpy.types.Operator):
-    bl_idname = Operators.SUN_DELETE.value[0]
-    bl_label = "SunDelete"
+class B4BWorldSetup(bpy.types.Operator):
+    bl_description = "Configure the World by loading it from the asset library"
+    bl_idname = Operators.WORLD_SETUP.value[0]
+    bl_label = "WorldSetup"
 
     def execute(self, context):
-        Sun.delete_from_scene()
+        try:
+            World.setup_world(context=context)
+            self.report({'INFO'}, "Successfully configured World.")
+        except BAT4BlenderUserError as e:
+            print(str(e), file=sys.stderr)
+            self.report({'ERROR'}, str(e))  # consume user errors by reporting them in the UI
         return {'FINISHED'}
 
 
-class B4BSunAdd(bpy.types.Operator):
-    bl_idname = Operators.SUN_ADD.value[0]
-    bl_label = "SunAdd"
+class B4BCompositingSetup(bpy.types.Operator):
+    bl_description = "Load the Compositor setup from the asset library"
+    bl_idname = Operators.COMPOSITING_SETUP.value[0]
+    bl_label = "CompositingSetup"
 
     def execute(self, context):
-        Sun.add_to_scene()
-        return {'FINISHED'}
-
-
-class B4BCamAdd(bpy.types.Operator):
-    bl_idname = Operators.CAM_ADD.value[0]
-    bl_label = "CamAdd"
-
-    def execute(self, context):
-        Camera.add_to_scene()
-        return {'FINISHED'}
-
-
-class B4BCamDelete(bpy.types.Operator):
-    bl_idname = Operators.CAM_DELETE.value[0]
-    bl_label = "CamDelete"
-
-    def execute(self, context):
-        Camera.delete_from_scene()
+        try:
+            World.setup_compositing(context=context)
+            self.report({'INFO'}, "Successfully configured Compositing.")
+        except BAT4BlenderUserError as e:
+            print(str(e), file=sys.stderr)
+            self.report({'ERROR'}, str(e))  # consume user errors by reporting them in the UI
         return {'FINISHED'}
 
 

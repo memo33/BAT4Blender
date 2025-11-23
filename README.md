@@ -5,13 +5,13 @@
 The general gist of it is as follows.
 1. download the `source` folder.
 2. rename the folder to BAT4Blender and zip it (the files inside the zip should end up inside a BAT4Blender subfolder).
-3. open Blender and go to `Edit` -> `Preferences` -> `Add-ons` -> `Install..`
+3. open Blender and go to *Edit → Preferences → Add-ons → Install..*
 4. navigate to the zip file created in step 2.
 5. select `Install Add-on from File..`.
 6. the Add-on is now installed and available in the `Properties` context menu in the `Scene` tab.
 
 Notes
-- in Blender, print output is sent to system console, not to the Python console. Go to 'Window' -> 'Toggle System Console' to open it.
+- in Blender, print output is sent to system console, not to the Python console. Go to *Window → Toggle System Console* to open it.
 
 ### Prerequisites
 
@@ -23,20 +23,17 @@ Notes
 
 ## Usage
 
-- Render Engine: Choose `Cycles` as Render Engine.
+The Add-on panel is available under *Properties → Scene → BAT4Blender*.
 
-- Super-Sampling (`Properties` -> `Scene` -> `BAT4Blender`):
-  Enable this to render images at 2× resolution for sharper results (requires ImageMagick).
-  As this means you render 4 times as many pixels,
-  you may decrease the Max Samples to 25 % of your previous setting or increase the Noise Threshold (`Properties` -> `Render` -> `Sampling`)
-  to keep the rendering time the same.
-  Afterwards, the image is down-sampled back to the original 1× resolution, which increases the sharpness of the image.
+- Render Engine: Choose `Cycles` as Render Engine (*Properties → Render*).
 
-- Post-Processing (`Properties` -> `Scene` -> `BAT4Blender`):
-  Enable this to automatically convert the exported LODs (OBJ files) and rendered images (PNG files) to an SC4Model file (requires fshgen).
-  (Currently, the XML file gets generated as a separate file. You need to manually add it to the SC4Model file, using a tool like ilive's Reader.)
+- Setup: Configure the `World` and `Compositing` setup once. This loads the relevant data from the linked asset library.
 
-- Night lights: There's no pre-configured rig yet, but you can customize the night renderings using Drivers:
+- `Day`/`Night` collections: This is an easy way to hide some objects for the day or for the night render.
+  - Create collections named `Day` and `Night` (or `Night.001` etc.) and place your objects inside them.
+    These collections are enabled/disabled automatically by BAT4Blender when switching between day and night.
+
+- Night lights using Drivers (advanced): As an alternative to the `Day`/`Night` collections, you can customize the night renderings using Drivers:
   - Right click on the `Day | MN | DN` panel and _Copy as New Driver_.
   - Right click on any property that should depend on the day/night state (e.g. _Strength_ of a light source, or _Disable in Render_ button) and _Paste Driver_.
   - Right click the property and _Edit Driver_.
@@ -47,9 +44,16 @@ Notes
     - `1.5 if night == 2 else 2.5 if night == 1 else 10.0` to distinguish between DN, MN and Day
   - Copy the driver to any other property that should use the same expression.
 
-- `Day`/`Night` collections: This is an easy way to hide some objects for the day or for the night render.
-  - Create collections named `Day` and `Night` and place your objects inside them.
-    These collections are enabled/disabled automatically by BAT4Blender when switching between day and night.
+- Super-Sampling (*Properties → Scene → BAT4Blender*):
+  Enable this to render images at 2× resolution for sharper results (requires ImageMagick).
+  As this means you render 4 times as many pixels,
+  you may decrease the Max Samples to 25 % of your previous setting or increase the Noise Threshold (*Properties → Render → Sampling*)
+  to keep the rendering time the same.
+  Afterwards, the image is down-sampled back to the original 1× resolution, which increases the sharpness of the image.
+
+- Post-Processing (*Properties → Scene → BAT4Blender*):
+  Enable this to automatically convert the exported LODs (OBJ files) and rendered images (PNG files) to an SC4Model file (requires fshgen).
+  (Currently, the XML file gets generated as a separate file. You need to manually add it to the SC4Model file, using a tool like ilive's Reader.)
 
 - Click "Render all zooms & rotations" to render images and export LODs. They are saved in your current working directory from which Blender was launched.
 
@@ -60,10 +64,10 @@ Notes
 - [x] slicing of LODs
 - [x] uv-mapping of LODs
 - [x] zoom-dependent LODs
-- [ ] renderer settings (lighting/shading/materials/…)
+- [x] renderer settings (lighting/shading/materials/…)
 - [x] nightlights
 - [x] Day/Night collections
-- [ ] darknite settings
+- [x] darknite settings
 - [x] HD rendering
 - [x] conversion of LODs to S3D: Using [fshgen](https://github.com/memo33/fshgen/releases):
   ```bash
