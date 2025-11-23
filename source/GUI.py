@@ -1,6 +1,8 @@
 import bpy
 from .Enums import Operators, Rotation, Zoom, NightMode
 from .GUI_ops import B4BRender
+from .Sun import Sun
+import math
 
 
 class MainPanel(bpy.types.Panel):
@@ -174,6 +176,17 @@ class B4BSceneProps(bpy.types.PropertyGroup):
             (Rotation.WEST.name, 'W', 'West view', '', Rotation.WEST.value)
         ],
         default=Rotation.SOUTH.name
+    )
+
+    def _get_sun_angles(self):
+        _, s_y, s_z = Sun.get_sun_rotation(Rotation[self.rotation])
+        return -s_y + math.pi/2, -s_z + math.pi/2  # elevation, rotation
+
+    sun_angles: bpy.props.FloatVectorProperty(
+        description="Elevation and rotation of sun",
+        unit='ROTATION',
+        size=2,
+        get=_get_sun_angles,
     )
 
     zoom: bpy.props.EnumProperty(
