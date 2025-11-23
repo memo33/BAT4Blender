@@ -3,6 +3,7 @@ from .Utils import BAT4BlenderUserError, b4b_collection, find_object
 from pathlib import Path
 from mathutils import Vector
 from . import Sun
+from .Config import WORLD_NAME, COMPOSITING_NAME
 
 
 def _ensure_cycles(context):
@@ -28,15 +29,15 @@ def _load_asset(coll_name, name, *, debug_label="Asset"):
     raise BAT4BlenderUserError(f"{debug_label} {name!r} not found in assets '{library_path}'")
 
 
-def setup_world(world_name="b4b_world", context=bpy.context):
+def setup_world(context, world_name=WORLD_NAME):
     _ensure_cycles(context)
     Sun.delete_from_scene()  # for backward compatibility, remove sun object used in earlier versions of BAT4Blender
     context.scene.world = _load_asset('worlds', name=world_name, debug_label="World")
 
 
-def setup_compositing(context=bpy.context):
+def setup_compositing(context):
     _ensure_cycles(context)
-    b4b_compositing = _load_asset('node_groups', name="b4b_compositing", debug_label="Node group")  # removes previous group_node.node_tree if it existed
+    b4b_compositing = _load_asset('node_groups', name=COMPOSITING_NAME, debug_label="Node group")  # removes previous group_node.node_tree if it existed
     context.scene.use_nodes = True
     tree = context.scene.node_tree
     for node in tree.nodes:  # remove previous group_node if it existed

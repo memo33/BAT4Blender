@@ -2,6 +2,7 @@ import bpy
 from .Enums import Operators, Rotation, Zoom, NightMode
 from .GUI_ops import B4BRender
 from . import Sun
+from .Config import WORLD_NAME, COMPOSITING_NAME
 import math
 
 
@@ -37,8 +38,10 @@ class MainPanel(bpy.types.Panel):
 
         layout.label(text="World")
         world = layout.row(align=True)
-        world.operator(Operators.WORLD_SETUP.value[0], text="Setup World")
-        world.operator(Operators.COMPOSITING_SETUP.value[0], text="Setup Compositing")
+        icon = 'FILE_REFRESH' if (w := bpy.context.scene.world) is not None and w.name == WORLD_NAME else 'ADD'
+        world.operator(Operators.WORLD_SETUP.value[0], text="Setup World", icon=icon)
+        icon = 'FILE_REFRESH' if bpy.context.scene.use_nodes and COMPOSITING_NAME in bpy.data.node_groups else 'ADD'
+        world.operator(Operators.COMPOSITING_SETUP.value[0], text="Setup Compositing", icon=icon)
 
         layout.label(text="Camera")
         cam = layout.row(align=True)
