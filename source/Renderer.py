@@ -334,3 +334,7 @@ class SuperSampling:
 
     def __post_init__(self):
         self.factor = 2 if self.enabled else 1
+
+    @staticmethod
+    def for_preview(context):
+        return SuperSampling(enabled=(context.scene.b4b.supersampling_enabled and context.scene.b4b.supersampling_preview != 'no_supersampling'))

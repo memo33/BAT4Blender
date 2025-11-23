@@ -251,6 +251,21 @@ class B4BRender(bpy.types.Operator):
         self.run_on_main_thread(f)
 
 
+class B4BCamSetup(bpy.types.Operator):
+    bl_description = "Update the camera position for the current view in the View Port. For rendering, this is always done automatically"
+    bl_idname = Operators.CAM_SETUP.value[0]
+    bl_label = "CamSetup"
+
+    def execute(self, context):
+        v = Rotation[context.scene.b4b.rotation]
+        z = Zoom[context.scene.b4b.zoom]
+        hd = context.scene.b4b.hd == 'HD'
+        Rig.setup(v, z, hd=hd)
+        Renderer.camera_manoeuvring(z, hd=hd, supersampling=SuperSampling.for_preview(context))
+        self.report({'INFO'}, "Successfully positioned Camera.")
+        return {'FINISHED'}
+
+
 class B4BPreview(bpy.types.Operator):
     bl_description = r"""Render a preview image for the current zoom"""
     bl_idname = Operators.PREVIEW.value[0]
@@ -262,8 +277,7 @@ class B4BPreview(bpy.types.Operator):
         hd = context.scene.b4b.hd == 'HD'
         Rig.setup(v, z, hd=hd)
         # q: pass the context to the renderer? or just grab it from internals..
-        supersampling = SuperSampling(enabled=(context.scene.b4b.supersampling_enabled and context.scene.b4b.supersampling_preview != 'no_supersampling'))
-        Renderer.generate_preview(z, hd=hd, supersampling=supersampling)
+        Renderer.generate_preview(z, hd=hd, supersampling=SuperSampling.for_preview(context))
         return {'FINISHED'}
 
 
@@ -334,25 +348,8 @@ class B4BLODDelete(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class B4BCamAdd(bpy.types.Operator):
-    bl_idname = Operators.CAM_ADD.value[0]
-    bl_label = "CamAdd"
-
-    def execute(self, context):
-        Camera.add_to_scene()
-        return {'FINISHED'}
-
-
-class B4BCamDelete(bpy.types.Operator):
-    bl_idname = Operators.CAM_DELETE.value[0]
-    bl_label = "CamDelete"
-
-    def execute(self, context):
-        Camera.delete_from_scene()
-        return {'FINISHED'}
-
-
 class B4BWorldSetup(bpy.types.Operator):
+    bl_description = "Configure the World by loading it from the asset library"
     bl_idname = Operators.WORLD_SETUP.value[0]
     bl_label = "WorldSetup"
 
@@ -367,6 +364,7 @@ class B4BWorldSetup(bpy.types.Operator):
 
 
 class B4BCompositingSetup(bpy.types.Operator):
+    bl_description = "Load the Compositor setup from the asset library"
     bl_idname = Operators.COMPOSITING_SETUP.value[0]
     bl_label = "CompositingSetup"
 

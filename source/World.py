@@ -54,7 +54,7 @@ def setup_compositing(context):
             case 'DiffCol': context.view_layer.use_pass_diffuse_color = True
             case 'Noisy Image': context.scene.cycles.use_denoising = True
             case 'Combined_env_light':
-                lg_name = context.scene.world.lightgroup
+                lg_name = w.lightgroup if (w := context.scene.world) is not None else ''
                 if lg_name != 'env_light':
                     raise BAT4BlenderUserError("World lacks lightgroup 'env_light'. Make sure to load World first.")
                 if lg_name not in context.view_layer.lightgroups:

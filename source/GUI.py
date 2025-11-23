@@ -2,7 +2,8 @@ import bpy
 from .Enums import Operators, Rotation, Zoom, NightMode
 from .GUI_ops import B4BRender
 from . import Sun
-from .Config import WORLD_NAME, COMPOSITING_NAME
+from .Config import WORLD_NAME, COMPOSITING_NAME, CAM_NAME
+from .Utils import b4b_collection, find_object
 import math
 
 
@@ -36,18 +37,16 @@ class MainPanel(bpy.types.Panel):
         lod.operator(Operators.LOD_DELETE.value[0], text="Delete")
         # lod.operator(Operators.LOD_EXPORT.value[0], text="Export .OBJ")  # LODs are exported during rendering
 
-        layout.label(text="World")
-        world = layout.row(align=True)
+        layout.label(text="Setup")
+        setup = layout.row(align=True)
         icon = 'FILE_REFRESH' if (w := bpy.context.scene.world) is not None and w.name == WORLD_NAME else 'ADD'
-        world.operator(Operators.WORLD_SETUP.value[0], text="Setup World", icon=icon)
+        setup.operator(Operators.WORLD_SETUP.value[0], text="World", icon=icon)
         icon = 'FILE_REFRESH' if bpy.context.scene.use_nodes and COMPOSITING_NAME in bpy.data.node_groups else 'ADD'
-        world.operator(Operators.COMPOSITING_SETUP.value[0], text="Setup Compositing", icon=icon)
+        setup.operator(Operators.COMPOSITING_SETUP.value[0], text="Compositing", icon=icon)
+        icon = 'FILE_REFRESH' if find_object(b4b_collection(), CAM_NAME) is not None else 'ADD'
+        setup.operator(Operators.CAM_SETUP.value[0], text="Camera", icon=icon)
 
-        layout.label(text="Camera")
-        cam = layout.row(align=True)
-        cam.operator(Operators.CAM_ADD.value[0], text="Add")
-        cam.operator(Operators.CAM_DELETE.value[0], text="Delete")
-
+        layout.separator()
         layout.label(text="Render")
         grp = layout.row(align=True)
         grp.prop(context.scene.b4b, 'group_id', text="Grp ID")
