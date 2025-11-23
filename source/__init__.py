@@ -7,7 +7,7 @@ bl_info = {
     "category": "Render",
     "blender": (3, 2, 0),  # minimum Blender version
     "author": "vrtxt, memo",
-    "version": (0, 0, 4),
+    "version": (0, 5, 0),
     "location": "Properties > Scene > BAT4Blender",
     "description": "Render and export an SC4Model (BAT) for use with SimCity 4.",
     "doc_url": "https://community.simtropolis.com/forums/topic/763334-bat4blender",

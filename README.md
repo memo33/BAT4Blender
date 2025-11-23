@@ -2,13 +2,12 @@
 
 ## Installing the Add-on
 
-The general gist of it is as follows.
-1. download the `source` folder.
-2. rename the folder to BAT4Blender and zip it (the files inside the zip should end up inside a BAT4Blender subfolder).
-3. open Blender and go to *Edit → Preferences → Add-ons → Install..*
-4. navigate to the zip file created in step 2.
-5. select `Install Add-on from File..`.
-6. the Add-on is now installed and available in the `Properties` context menu in the `Scene` tab.
+1. Download the [latest release](https://github.com/memo33/BAT4Blender/releases).
+2. Open Blender and go to *Edit → Preferences → Add-ons → Install..*
+3. Navigate to the downloaded ZIP file.
+4. Select `Install Add-on from File..`.
+5. Optionally configure the Preferences of the Add-on.
+6. The Add-on is now installed and available in the `Properties` context menu in the `Scene` tab.
 
 Notes
 - in Blender, print output is sent to system console, not to the Python console. Go to *Window → Toggle System Console* to open it.
@@ -86,3 +85,11 @@ The Add-on panel is available under *Properties → Scene → BAT4Blender*.
 - [x] showing progress while rendering: Go to the Rendering workspace to see the current image. Press ESC to cancel rendering.
 - [x] super-sampling (for sharper renderings)
 - [x] generate `SC4PLUGINDESC` XML file
+
+## Developer Notes
+
+Bundling a new release:
+
+- copy the files from `source` into a new folder `BAT4Blender`
+- restore the latest `BAT4Blender/assets` folder from the previous release
+- zip the folder `BAT4Blender` (the files inside the zip should end up inside a BAT4Blender subfolder)

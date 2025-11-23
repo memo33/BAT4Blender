@@ -1,3 +1,11 @@
+*.blend
+*.blend1
+*.txt~
+*.zip
+*.png
+*.dat
+*.SC4Model
+
 # User-specific stuff
 .idea/**/workspace.xml
 .idea/**/tasks.xml
