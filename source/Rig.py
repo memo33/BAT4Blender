@@ -2,8 +2,7 @@ import bpy
 from .Enums import Zoom
 from .LOD import LOD
 from .Camera import Camera
-from .Sun import Sun
-from .Config import CAM_NAME, SUN_NAME, LODZ_NAME
+from .Config import CAM_NAME, LODZ_NAME
 from .Utils import b4b_collection, find_object
 
 
@@ -13,12 +12,9 @@ class Rig:
         coll = b4b_collection()
         if find_object(coll, CAM_NAME) is None:
             Camera.add_to_scene()
-        if find_object(coll, SUN_NAME) is None:
-            Sun.add_to_scene()
         Rig.lods_add()
 
         Camera.update(rotation, zoom)
-        Sun.update(rotation)
         bpy.context.view_layer.update()
 
     @staticmethod

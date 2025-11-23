@@ -1,7 +1,7 @@
 import bpy
 from .Enums import Operators, Rotation, Zoom, NightMode
 from .GUI_ops import B4BRender
-from .Sun import Sun
+from . import Sun
 import math
 
 
@@ -35,18 +35,15 @@ class MainPanel(bpy.types.Panel):
         lod.operator(Operators.LOD_DELETE.value[0], text="Delete")
         # lod.operator(Operators.LOD_EXPORT.value[0], text="Export .OBJ")  # LODs are exported during rendering
 
+        layout.label(text="World")
+        world = layout.row(align=True)
+        world.operator(Operators.WORLD_SETUP.value[0], text="Setup World")
+        world.operator(Operators.COMPOSITING_SETUP.value[0], text="Setup Compositing")
+
         layout.label(text="Camera")
         cam = layout.row(align=True)
         cam.operator(Operators.CAM_ADD.value[0], text="Add")
         cam.operator(Operators.CAM_DELETE.value[0], text="Delete")
-
-        layout.label(text="Sun")
-        sun = layout.row(align=True)
-        sun.operator(Operators.SUN_ADD.value[0], text="Add")
-        sun.operator(Operators.SUN_DELETE.value[0], text="Delete")
-        world = layout.row(align=True)
-        world.operator(Operators.WORLD_SETUP.value[0], text="Setup World")
-        world.operator(Operators.COMPOSITING_SETUP.value[0], text="Setup Compositing")
 
         layout.label(text="Render")
         grp = layout.row(align=True)

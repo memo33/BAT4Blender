@@ -1,7 +1,6 @@
 import bpy
 from .Enums import Operators, Rotation, Zoom, NightMode
 from .Rig import Rig
-from .Sun import Sun
 from . import World
 from .Camera import Camera
 from .Renderer import Renderer, SuperSampling
@@ -332,24 +331,6 @@ class B4BLODDelete(bpy.types.Operator):
     def execute(self, context):
         for z in Zoom:
             Rig.lod_delete(z)
-        return {'FINISHED'}
-
-
-class B4BSunDelete(bpy.types.Operator):
-    bl_idname = Operators.SUN_DELETE.value[0]
-    bl_label = "SunDelete"
-
-    def execute(self, context):
-        Sun.delete_from_scene()
-        return {'FINISHED'}
-
-
-class B4BSunAdd(bpy.types.Operator):
-    bl_idname = Operators.SUN_ADD.value[0]
-    bl_label = "SunAdd"
-
-    def execute(self, context):
-        Sun.add_to_scene()
         return {'FINISHED'}
 
 

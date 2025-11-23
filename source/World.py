@@ -2,7 +2,7 @@ import bpy
 from .Utils import BAT4BlenderUserError, b4b_collection, find_object
 from pathlib import Path
 from mathutils import Vector
-from .Config import SUN_NAME
+from . import Sun
 
 
 def _ensure_cycles(context):
@@ -30,13 +30,8 @@ def _load_asset(coll_name, name, *, debug_label="Asset"):
 
 def setup_world(world_name="b4b_world", context=bpy.context):
     _ensure_cycles(context)
-    sun = find_object(b4b_collection(), SUN_NAME)
-    if sun is None:
-        raise BAT4BlenderUserError("Create a sun first")
+    Sun.delete_from_scene()  # for backward compatibility, remove sun object used in earlier versions of BAT4Blender
     context.scene.world = _load_asset('worlds', name=world_name, debug_label="World")
-    sun.hide_render = True  # TODO eliminate sun completely
-    sun.hide_viewport = True
-    sun.hide_set(True)
 
 
 def setup_compositing(context=bpy.context):
