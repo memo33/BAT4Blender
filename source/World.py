@@ -7,7 +7,7 @@ from .Config import WORLD_NAME, COMPOSITING_NAME
 
 
 def _ensure_cycles(context):
-    if context.scene.render.engine == 'BLENDER_EEVEE':
+    if context.scene.render.engine in ('BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT'):
         print("Switching from EEVEE to CYCLES render engine")
         context.scene.render.engine = 'CYCLES'
 
