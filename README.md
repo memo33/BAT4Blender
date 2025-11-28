@@ -54,6 +54,9 @@ The Add-on panel is available under *Properties → Scene → BAT4Blender*.
   Enable this to automatically convert the exported LODs (OBJ files) and rendered images (PNG files) to an SC4Model file (requires fshgen).
   (Currently, the XML file gets generated as a separate file. You need to manually add it to the SC4Model file, using a tool like ilive's Reader.)
 
+- *Preview*: After the preview render result is complete, make sure to select the *Composite* image (instead of *View Layer*) to see the result.
+  (Otherwise, e.g. nightlighting might not be visible.)
+
 - Click "Render all zooms & rotations" to render images and export LODs. They are saved in your current working directory from which Blender was launched.
 
 ## Roadmap
