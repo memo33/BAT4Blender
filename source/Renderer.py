@@ -19,29 +19,6 @@ _SLOP = 3
 
 class Renderer:
 
-    # @staticmethod
-    # def enable_nodes():
-    #     # switch on nodes
-    #     bpy.context.scene.use_nodes = True
-    #     tree = bpy.context.scene.node_tree
-    #     links = tree.links
-
-    #     # clear default nodes
-    #     for n in tree.nodes:
-    #         tree.nodes.remove(n)
-
-    #     # create input render layer node
-    #     rl = tree.nodes.new('CompositorNodeRLayers')
-    #     rl.location = 185, 285
-
-    #     # create output node
-    #     v = tree.nodes.new('CompositorNodeViewer')
-    #     v.location = 750, 210
-    #     v.use_alpha = True
-
-    #     # Links
-    #     links.new(rl.outputs[0], v.inputs[0])  # link Image output to Viewer input
-
     @staticmethod
     def render_pre(z: Zoom, v: Rotation, gid, model_name: str, hd: bool, supersampling: SuperSampling):
         r"""This function is invoked by the modal operator before the rendering of this view started.

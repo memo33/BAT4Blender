@@ -43,13 +43,15 @@ def setup_compositing(context):
     for node in tree.nodes:  # remove previous group_node if it existed
         if isinstance(node, bpy.types.CompositorNodeGroup) and node.node_tree is None:
             tree.nodes.remove(node)
-    group_node = tree.nodes.new('CompositorNodeGroup')
+    group_node = tree.nodes.new(type='CompositorNodeGroup')
     group_node.node_tree = b4b_compositing
     missing = []
 
-    rl_node = tree.nodes.get('Render Layers') or tree.nodes.new('CompositorNodeRLayers')
+    rlayers_node = tree.nodes.get('Render Layers') or tree.nodes.new(type='CompositorNodeRLayers')
     for key, in_ in group_node.inputs.items():
         match key:  # enable additional passes as needed
+            case 'Image': pass
+            case 'Alpha': pass
             case 'Normal': context.view_layer.use_pass_normal = True
             case 'DiffCol': context.view_layer.use_pass_diffuse_color = True
             case 'Noisy Image': context.scene.cycles.use_denoising = True
@@ -62,8 +64,8 @@ def setup_compositing(context):
                     if lg.name != lg_name:
                         raise BAT4BlenderUserError(f"Failed to enable view layer lightgroup {lg_name!r}")
             case _: pass
-        rl_node.update()
-        out = rl_node.outputs.get(key)
+        rlayers_node.update()
+        out = rlayers_node.outputs.get(key)
         if out is None or out.is_unavailable:
             missing.append(key)
         else:
@@ -71,9 +73,9 @@ def setup_compositing(context):
             if not link.is_valid:
                 missing.append(key)
 
-    comp_node = tree.nodes.get('Composite') or tree.nodes.new('CompositorNodeComposite')
+    output_node = tree.nodes.get('Composite') or tree.nodes.new(type='CompositorNodeComposite')
     for key, out in group_node.outputs.items():
-        in_ = comp_node.inputs.get(key)
+        in_ = output_node.inputs.get(key)
         if in_ is None or in_.is_unavailable:
             missing.append(key)
         else:
@@ -82,9 +84,10 @@ def setup_compositing(context):
                 missing.append(key)
 
     # positioning
-    group_node.location = rl_node.location + Vector((350, 0))
-    if group_node.location.x + 250 >= comp_node.location.x:
-        comp_node.location = group_node.location + Vector((250, 0))
+    sep = 150
+    group_node.location = rlayers_node.location + Vector((rlayers_node.width + sep, 0))
+    if group_node.location.x + group_node.width + sep >= output_node.location.x:
+        output_node.location = group_node.location + Vector((group_node.width + sep, 0))
 
     if missing:
         raise BAT4BlenderUserError(f"Compositor node {b4b_compositing.name!r} has only been partially connected. Missing connections: {', '.join(missing)}")
