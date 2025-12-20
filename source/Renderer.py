@@ -192,6 +192,10 @@ class Renderer:
         that the orthographic scale results in a pixel-perfect display of the
         rendered image at the given zoom level.
         """
+        if bpy.context.scene.render.resolution_percentage != 100:
+            raise BAT4BlenderUserError(f"Unsupported resolution scaling: {bpy.context.scene.render.resolution_percentage}%. Go to the Output tab and set it to 100%.")
+        if bpy.context.scene.render.pixel_aspect_x != 1 or bpy.context.scene.render.pixel_aspect_y != 1:
+            raise BAT4BlenderUserError(f"Unsupported pixel aspect: {bpy.context.scene.render.pixel_aspect_x:g}:{bpy.context.scene.render.pixel_aspect_y:g}. Go to the Output tab and set it to 1:1.")
         coll = b4b_collection()
         cam = find_object(coll, CAM_NAME)
         lod = find_object(coll, LODZ_NAME[zoom.value])

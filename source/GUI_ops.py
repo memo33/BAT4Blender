@@ -257,13 +257,18 @@ class B4BCamSetup(bpy.types.Operator):
     bl_label = "CamSetup"
 
     def execute(self, context):
-        v = Rotation[context.scene.b4b.rotation]
-        z = Zoom[context.scene.b4b.zoom]
-        hd = context.scene.b4b.hd == 'HD'
-        Rig.setup(v, z, hd=hd)
-        Renderer.camera_manoeuvring(z, hd=hd, supersampling=SuperSampling.for_preview(context))
-        self.report({'INFO'}, "Successfully positioned Camera.")
-        return {'FINISHED'}
+        try:
+            v = Rotation[context.scene.b4b.rotation]
+            z = Zoom[context.scene.b4b.zoom]
+            hd = context.scene.b4b.hd == 'HD'
+            Rig.setup(v, z, hd=hd)
+            Renderer.camera_manoeuvring(z, hd=hd, supersampling=SuperSampling.for_preview(context))
+            self.report({'INFO'}, "Successfully positioned Camera.")
+            return {'FINISHED'}
+        except BAT4BlenderUserError as e:
+            print(str(e), file=sys.stderr)
+            self.report({'ERROR'}, str(e))  # consume user errors by reporting them in the UI
+            return {'CANCELLED'}
 
 
 class B4BPreview(bpy.types.Operator):
@@ -272,13 +277,18 @@ class B4BPreview(bpy.types.Operator):
     bl_label = "Preview"
 
     def execute(self, context):
-        v = Rotation[context.scene.b4b.rotation]
-        z = Zoom[context.scene.b4b.zoom]
-        hd = context.scene.b4b.hd == 'HD'
-        Rig.setup(v, z, hd=hd)
-        # q: pass the context to the renderer? or just grab it from internals..
-        Renderer.generate_preview(z, hd=hd, supersampling=SuperSampling.for_preview(context))
-        return {'FINISHED'}
+        try:
+            v = Rotation[context.scene.b4b.rotation]
+            z = Zoom[context.scene.b4b.zoom]
+            hd = context.scene.b4b.hd == 'HD'
+            Rig.setup(v, z, hd=hd)
+            # q: pass the context to the renderer? or just grab it from internals..
+            Renderer.generate_preview(z, hd=hd, supersampling=SuperSampling.for_preview(context))
+            return {'FINISHED'}
+        except BAT4BlenderUserError as e:
+            print(str(e), file=sys.stderr)
+            self.report({'ERROR'}, str(e))  # consume user errors by reporting them in the UI
+            return {'CANCELLED'}
 
 
 class B4BPreviewDownSampling(bpy.types.Operator):
