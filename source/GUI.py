@@ -41,7 +41,7 @@ class MainPanel(bpy.types.Panel):
         setup = layout.row(align=True)
         icon = 'FILE_REFRESH' if (w := bpy.context.scene.world) is not None and w.name == WORLD_NAME else 'ADD'
         setup.operator(Operators.WORLD_SETUP.value[0], text="World", icon=icon)
-        icon = 'FILE_REFRESH' if bpy.context.scene.use_nodes and COMPOSITING_NAME in bpy.data.node_groups else 'ADD'
+        icon = 'FILE_REFRESH' if (bpy.app.version >= (5, 0, 0) or bpy.context.scene.use_nodes) and COMPOSITING_NAME in bpy.data.node_groups else 'ADD'
         setup.operator(Operators.COMPOSITING_SETUP.value[0], text="Compositing", icon=icon)
         icon = 'FILE_REFRESH' if (c := b4b_collection(create=False)) is not None and find_object(c, CAM_NAME) is not None else 'ADD'
         setup.operator(Operators.CAM_SETUP.value[0], text="Camera", icon=icon)

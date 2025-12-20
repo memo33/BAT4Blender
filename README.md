@@ -3,7 +3,7 @@
 ## Installing the Add-on
 
 1. Download the [latest release](https://github.com/memo33/BAT4Blender/releases).
-2. Open Blender and go to *Edit → Preferences → Add-ons → Install..*
+2. Open Blender and go to *Edit → Preferences → Add-ons → Install..* (or *→ "∨" → Install from Disk..*)
 3. Navigate to the downloaded ZIP file.
 4. Select `Install Add-on from File..`.
 5. Optionally configure the Preferences of the Add-on.
@@ -14,7 +14,7 @@ Notes
 
 ### Prerequisites
 
-- Blender 3.6 or 4.2+
+- Blender 3.6 or 4.2+ or 5.0+
 - **ImageMagick** ([Windows](https://imagemagick.org/script/download.php#windows)/[macOS](https://imagemagick.org/script/download.php#macos)/[Linux](https://imagemagick.org/script/download.php#linux))
   is needed for Super-Sampling
 - [fshgen](https://github.com/memo33/fshgen/releases)
