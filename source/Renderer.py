@@ -121,7 +121,7 @@ class Renderer:
         img = bpy.data.images.load(downsampled_tmp_png_path if supersampling.enabled else tmp_png_path)
         try:
             assert tuple(img.size) == (canvas.width_px, canvas.height_px), \
-                    f"Rendered image has unexpected size: {tuple(img.size)} instead of {canvas.width_px}×{canvas.height_px}"
+                    f"Rendered image Z{z.value+1}{v.compass_name()} has unexpected size: {tuple(img.size)} instead of {canvas.width_px}×{canvas.height_px}"
             arr = np.asarray(img.pixels).reshape((img.size[1], img.size[0], img.channels))
 
             # Slice the image into 256×256 tiles.
