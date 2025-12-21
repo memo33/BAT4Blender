@@ -248,7 +248,11 @@ class B4BRender(bpy.types.Operator):
                 bpy.ops.render.render('INVOKE_DEFAULT', write_still=True, **kwds)
             finally:
                 bpy.context.preferences.view.render_display_type = orig_display_type
-        self.run_on_main_thread(f)
+
+        if context.scene.b4b.export_lods_only:
+            self._post_handler(scene=context.scene, depsgraph=None)
+        else:
+            self.run_on_main_thread(f)
 
 
 class B4BCamSetup(bpy.types.Operator):

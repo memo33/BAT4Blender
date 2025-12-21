@@ -72,7 +72,8 @@ class Renderer:
         bpy.context.scene.render.use_border = False  # always render the full frame
         tmp_png_path = get_relative_path_for(f"{tgi_formatter(gid, z.value, v.value, 0, is_night=(nightmode != NightMode.DAY))}_{nightmode.label()}.tmp.png")
         bpy.context.scene.render.filepath = tmp_png_path
-        print(f"Rendering image ({bpy.context.scene.render.resolution_x}×{bpy.context.scene.render.resolution_y}, supersampling={supersampling.enabled}, nightmode={nightmode.label()})")
+        msg = f"Rendering image ({bpy.context.scene.render.resolution_x}×{bpy.context.scene.render.resolution_y}, supersampling={supersampling.enabled}, nightmode={nightmode.label()})"
+        print(msg if not bpy.context.scene.b4b.export_lods_only else f"Skipping: {msg}")
         return canvas, tile_indices_nonempty, tmp_png_path, obj_path, supersampling
 
     @staticmethod
@@ -83,10 +84,10 @@ class Renderer:
         """
         import numpy as np
         from pathlib import Path
-        if not Path(tmp_png_path).is_file():
-            return  # this can happen when rendering was cancelled
         if obj_path is not None:  # only defined for day
             yield obj_path
+        if not Path(tmp_png_path).is_file():
+            return  # this can happen when rendering was cancelled or if export_lods_only
         nightmode = NightMode[bpy.context.scene.b4b.night]
         if supersampling.enabled:
             downsampled_tmp_png_path = get_relative_path_for(f"{tgi_formatter(gid, z.value, v.value, 0, is_night=(nightmode != NightMode.DAY))}_{nightmode.label()}_downsampled.tmp.png")

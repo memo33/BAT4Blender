@@ -59,8 +59,14 @@ class MainPanel(bpy.types.Panel):
         day_night.menu(DayNightSelectMenu.bl_idname, text=day_night_name)  # using a custom menu instead of `prop` to allow disabling some enum items
 
         if not context.window_manager.b4b.is_rendering:
-            text = (B4BRender.bl_label if not context.scene.b4b.render_current_view_only
-                    else f"Render only Zoom {z.value+1} {Rotation[context.scene.b4b.rotation].compass_name()} {NightMode[context.scene.b4b.night].label()}  (see {AdvancedPanel.bl_label})")
+            match context.scene.b4b.render_current_view_only, context.scene.b4b.export_lods_only:
+                case False, True:
+                    text = f"Export LODs only  (see {AdvancedPanel.bl_label})"
+                case True, _:
+                    verb = "Render" if not context.scene.b4b.export_lods_only else "Export"
+                    text = f"{verb} only Zoom {z.value+1} {Rotation[context.scene.b4b.rotation].compass_name()} {NightMode[context.scene.b4b.night].label()}  (see {AdvancedPanel.bl_label})"
+                case _:
+                    text = B4BRender.bl_label
             self.layout.operator(Operators.RENDER.value[0], text=text)
         else:
             progress_bar = layout.row(align=True)
@@ -137,8 +143,8 @@ class AdvancedPanel(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
-        row = layout.row()
-        row.prop(context.scene.b4b, 'render_current_view_only')
+        layout.prop(context.scene.b4b, 'render_current_view_only')
+        layout.prop(context.scene.b4b, 'export_lods_only')
 
 
 class B4BWmProps(bpy.types.PropertyGroup):
@@ -276,8 +282,14 @@ class B4BSceneProps(bpy.types.PropertyGroup):
 
     render_current_view_only: bpy.props.BoolProperty(
         default=False,
-        name="Render current view only (for debugging)",
+        name="Export current view only (for debugging)",
         description="When enabled, only the current Zoom and Rotation is rendered and exported",
+    )
+
+    export_lods_only: bpy.props.BoolProperty(
+        default=False,
+        name="Export LODs only",
+        description="When enabled, skip rendering, but only export the LODs",
     )
 
 
