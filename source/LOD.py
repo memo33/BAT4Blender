@@ -170,7 +170,8 @@ class LOD:
         bm = bmesh.new()
         bm.from_mesh(lod.data)
         name = 'b4b_lod_visible'
-        mesh = LOD._copy_bmesh_with_face_filter(bm, name, lambda f: (lod.matrix_world @ f.normal).dot(cam_view_direction) < 0)
+        lod_rotation = lod.matrix_world.to_3x3()  # ignore LOD translation
+        mesh = LOD._copy_bmesh_with_face_filter(bm, name, lambda f: (lod_rotation @ f.normal).dot(cam_view_direction) < 0)
         obj = bpy.data.objects.new(name, mesh)
         obj.location = lod.location
         obj.scale = lod.scale
