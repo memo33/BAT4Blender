@@ -145,6 +145,10 @@ class AdvancedPanel(bpy.types.Panel):
         layout = self.layout
         layout.prop(context.scene.b4b, 'render_current_view_only')
         layout.prop(context.scene.b4b, 'export_lods_only')
+        if context.scene.b4b.debug_mode:
+            z = Zoom[context.scene.b4b.zoom]
+            text = f"Slice LOD of Zoom {z.value+1} {Rotation[context.scene.b4b.rotation].compass_name()}  (for debugging)"
+            self.layout.operator(Operators.LOD_SLICE.value[0], text=text)
 
 
 class B4BWmProps(bpy.types.PropertyGroup):
@@ -290,6 +294,12 @@ class B4BSceneProps(bpy.types.PropertyGroup):
         default=False,
         name="Export LODs only",
         description="When enabled, skip rendering, but only export the LODs",
+    )
+
+    debug_mode: bpy.props.BoolProperty(
+        default=False,
+        name="Debug Mode",
+        description="Enable a few debug options for BAT4Blender",
     )
 
 

@@ -9,6 +9,7 @@ class Operators(Enum):
     LOD_ADD = "object.b4b_lod_add",
     LOD_CUSTOM = "object.b4b_lod_custom",
     LOD_DELETE = "object.b4b_lod_delete",
+    LOD_SLICE = "object.b4b_lod_slice",
     CAM_SETUP = "object.b4b_camera_setup",
     WORLD_SETUP = "object.b4b_world_setup",
     COMPOSITING_SETUP = "object.b4b_compositing_setup",

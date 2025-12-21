@@ -2,9 +2,11 @@ import bpy
 from .Enums import Operators, Rotation, Zoom, NightMode
 from .Rig import Rig
 from . import World
+from .Config import LODZ_NAME, CAM_NAME
 from .Camera import Camera
 from .Renderer import Renderer, SuperSampling
-from .Utils import blend_file_name, BAT4BlenderUserError
+from .Utils import blend_file_name, BAT4BlenderUserError, b4b_collection, find_object
+from .LOD import LOD
 from bpy.props import StringProperty
 import queue
 import sys
@@ -360,6 +362,33 @@ class B4BLODDelete(bpy.types.Operator):
         for z in Zoom:
             Rig.lod_delete(z)
         return {'FINISHED'}
+
+
+class B4BLODSlice(bpy.types.Operator):
+    bl_description = "Slice the visible LOD into pieces up to 256 × 256 pixels large"
+    bl_idname = Operators.LOD_SLICE.value[0]
+    bl_label = "LODSlice"
+
+    def execute(self, context):
+        try:
+            v = Rotation[context.scene.b4b.rotation]
+            z = Zoom[context.scene.b4b.zoom]
+            hd = context.scene.b4b.hd == 'HD'
+            Rig.setup(v, z, hd=hd)
+            canvas = Renderer.camera_manoeuvring(z, hd=hd, supersampling=SuperSampling.for_preview(context))
+            coll = b4b_collection()
+            cam = find_object(coll, CAM_NAME)
+            lod = find_object(coll, LODZ_NAME[z.value])
+            lod_slices = LOD.sliced(lod, cam, canvas)
+            lod_slices_empty = [lod_slice for lod_slice in lod_slices.values() if len(lod_slice.data.polygons) == 0]
+            for lod_slice in lod_slices_empty:  # remove empty slices
+                bpy.data.meshes.remove(lod_slice.data)
+            self.report({'INFO'}, f"Successfully created sliced copy of visible LOD ({len(lod_slices) - len(lod_slices_empty)} slices).")
+            return {'FINISHED'}
+        except BAT4BlenderUserError as e:
+            print(str(e), file=sys.stderr)
+            self.report({'ERROR'}, str(e))  # consume user errors by reporting them in the UI
+            return {'CANCELLED'}
 
 
 class B4BWorldSetup(bpy.types.Operator):
