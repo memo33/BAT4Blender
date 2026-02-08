@@ -276,8 +276,8 @@ rf"""<?xml version="1.0" encoding="UTF-8"?>
                 "--format", "Dxt1",
                 "--gid", f"0x{gid}",
             ], input="\n".join(files).encode())
-        except FileNotFoundError:
-            raise BAT4BlenderUserError("fshgen executable not found. Install it and configure it under BAT4Blender Post-Processing, or disable Post-Processing.")
+        except OSError as err:
+            raise BAT4BlenderUserError(f"""Failed to create SC4Model using "fshgen". Make sure "fshgen" is installed and configured under BAT4Blender Post-Processing, or disable Post-Processing.\n({type(err).__name__} {err})""")
         if result.returncode != 0:
             raise BAT4BlenderUserError("""Failed to create SC4Model using "fshgen". Check console output for error messages, or disable Post-Processing.""")
 
@@ -303,8 +303,8 @@ rf"""<?xml version="1.0" encoding="UTF-8"?>
             ])
             if result.returncode != 0:
                 raise BAT4BlenderUserError("Failed to downsample rendered image using ImageMagick. Check console output for error messages, or disable Super-Sampling.")
-        except FileNotFoundError:
-            raise BAT4BlenderUserError("ImageMagick executable not found. Install it and configure it under BAT4Blender Super-Sampling, or disable Super-Sampling.")
+        except OSError as err:
+            raise BAT4BlenderUserError(f"""Failed to execute ImageMagick. Make sure ImageMagick is installed and configured under BAT4Blender Super-Sampling, or disable Super-Sampling.\n({type(err).__name__} {err})""")
 
 
 @dataclass
