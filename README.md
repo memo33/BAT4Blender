@@ -10,7 +10,7 @@
 6. The Add-on is now installed and available in the `Properties` context menu in the `Scene` tab.
 
 Notes
-- in Blender, print output is sent to system console, not to the Python console. Go to *Window → Toggle System Console* to open it.
+- in Blender, print output is sent to the [system console](https://docs.blender.org/manual/en/latest/advanced/command_line/launch/windows.html), not to the Python console. Go to *Window → Toggle System Console* to open it.
 
 ### Prerequisites
 
