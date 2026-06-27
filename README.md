@@ -59,6 +59,33 @@ The Add-on panel is available under *Properties → Scene → BAT4Blender*.
 
 - Click "Render all zooms & rotations" to render images and export LODs. They are saved in your current working directory from which Blender was launched.
 
+## Batch processing
+
+Example Python batch script:
+```python
+import bpy
+blend_files = [
+    "/path/to/file1.blend",
+    "/path/to/file2.blend",
+    # add more files as needed
+]
+for filepath in blend_files:
+    bpy.ops.wm.open_mainfile(filepath=filepath)
+    bpy.ops.object.b4b_render()
+```
+You can run Blender with a Python script from the command line using:
+```bash
+blender --background --python script.py`
+```
+(Running it from the *Scripting* tab inside Blender would currently [fail](https://blender.stackexchange.com/questions/14948/opening-a-blender-file-during-python-script-execution-without-changing-context)).
+
+Alternatively, without a script:
+```bash
+blender --background file1.blend --python-exit-code 42 --python-expr 'import bpy; bpy.ops.object.b4b_render()'
+blender --background file2.blend --python-exit-code 42 --python-expr 'import bpy; bpy.ops.object.b4b_render()'
+```
+To select a particular Scene, add `--scene name` after the .blend file name.
+
 ## Roadmap
 
 - [x] alpha version (camera positioning, LOD creation, rendering of small objects)
@@ -88,6 +115,7 @@ The Add-on panel is available under *Properties → Scene → BAT4Blender*.
 - [x] showing progress while rendering: Go to the Rendering workspace to see the current image. Press ESC to cancel rendering.
 - [x] super-sampling (for sharper renderings)
 - [x] generate `SC4PLUGINDESC` XML file
+- [x] batch processing
 
 ## Developer Notes
 

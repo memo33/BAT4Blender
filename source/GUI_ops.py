@@ -48,7 +48,103 @@ class MessageOperator(bpy.types.Operator):
         row.operator("error.ok")
 
 
-class B4BRender(bpy.types.Operator):
+class _B4BRenderImpl(bpy.types.Operator):
+    r"""Abstract shared implementation of the rendering operators logic.
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        context = bpy.context
+        self._orig_zoom = Zoom[context.scene.b4b.zoom]
+        self._orig_rotation = Rotation[context.scene.b4b.rotation]
+        self._orig_nightmode = NightMode[context.scene.b4b.night]
+        day_night_flags = int(context.scene.b4b.render_day_night)
+        if context.scene.b4b.render_current_view_only:
+            self._active_nightmodes = [self._orig_nightmode]
+            self._steps = [(self._orig_zoom, self._orig_rotation, self._orig_nightmode)]
+        else:
+            self._active_nightmodes = [nightmode for nightmode in NightMode if day_night_flags & (1 << nightmode.value) != 0]
+            self._steps = [(z, v, nightmode) for nightmode in self._active_nightmodes for z in Zoom for v in Rotation]
+        self._step = 0
+        self._output_files = {nightmode: [] for nightmode in self._active_nightmodes}  # is *only* accessed on main thread, so no need for synchronization
+
+    def _finalize_outputs(self, context):
+        # after last step, create XML and SC4Model
+        model_name = blend_file_name()
+
+        if NightMode.DAY in self._active_nightmodes:  # only export XML together with the LODs during Day render
+            Renderer.create_xml(name=model_name, gid=context.scene.b4b.group_id)
+
+        if context.scene.b4b.postproc_enabled:
+            context.window_manager.b4b.progress = 100
+            context.window_manager.b4b.progress_label = "Creating SC4Model file"
+            fshgen_script = context.preferences.addons[__package__].preferences.fshgen_path or "fshgen"
+            if self._active_nightmodes == [NightMode.DAY]:  # Day only
+                Renderer.create_sc4model(fshgen_script,
+                                         self._output_files[NightMode.DAY],
+                                         name=model_name,
+                                         gid=context.scene.b4b.group_id,
+                                         nightmode=NightMode.DAY)
+            else:  # Night
+                if NightMode.MAXIS_NIGHT in self._active_nightmodes:
+                    Renderer.create_sc4model(fshgen_script,
+                                             self._output_files.get(NightMode.DAY, []) + self._output_files[NightMode.MAXIS_NIGHT],
+                                             name=model_name,
+                                             gid=context.scene.b4b.group_id,
+                                             nightmode=NightMode.MAXIS_NIGHT)
+                if NightMode.DARK_NIGHT in self._active_nightmodes:
+                    Renderer.create_sc4model(fshgen_script,
+                                             self._output_files.get(NightMode.DAY, []) + self._output_files[NightMode.DARK_NIGHT],
+                                             name=model_name,
+                                             gid=context.scene.b4b.group_id,
+                                             nightmode=NightMode.DARK_NIGHT)
+            delete_intermediate_files = True
+            if delete_intermediate_files:
+                for files in self._output_files.values():
+                    for f in files:
+                        try:
+                            Path(f).unlink(missing_ok=True)
+                        except IOError:
+                            pass  # ignored
+
+    def _ensure_gid(self, context):
+        if context.scene.b4b.group_id in ["default", "", None]:  # GID is only generated once
+            bpy.ops.object.b4b_gid_randomize()  # Operators.GID_RANDOMIZE
+
+    def _switch_view(self, zoom: Zoom, rotation: Rotation, nightmode: NightMode):
+        bpy.context.scene.b4b.zoom = zoom.name
+        bpy.context.scene.b4b.rotation = rotation.name
+        bpy.context.scene.b4b.night = nightmode.name
+
+    def _prepare_render(self, context):
+        z, v, nightmode = self._steps[self._step]
+        print(f"Step ({self._step+1}/{len(self._steps)}): Zoom {z.value+1} {v.name} {nightmode.label()}")
+        self._switch_view(z, v, nightmode)
+        context.window_manager.b4b.progress = 100 * self._step / len(self._steps)  # TODO consider non-linearity
+        context.window_manager.b4b.progress_label = f"({self._step+1}/{len(self._steps)}) Zoom {z.value+1} {v.name} {nightmode.label()}"
+        model_name = blend_file_name()
+        hd = context.scene.b4b.hd == 'HD'
+        Rig.setup(v, z, hd=hd)
+        if context.scene.b4b.supersampling_enabled:
+            supersampling = SuperSampling(
+                enabled=True,
+                magick_exe=(context.preferences.addons[__package__].preferences.imagemagick_path or "magick"),
+                downsampling_filter=context.scene.b4b.downsampling_filter)
+        else:
+            supersampling = SuperSampling(enabled=False)
+        return Renderer.render_pre(z, v, context.scene.b4b.group_id, model_name, hd=hd, supersampling=supersampling)
+
+    def _do_render(self, context, *, blocking: bool):
+        layer = context.view_layer  # we choose the active layer for rendering if enabled in 'Use for Rendering', otherwise the default layer
+        kwds = dict(layer=layer.name) if layer.use else {}
+        orig_display_type = context.preferences.view.render_display_type
+        try:
+            context.preferences.view.render_display_type = 'NONE'  # avoid opening new window for each view (instead use Rendering workspace to see result)
+            bpy.ops.render.render('EXEC_DEFAULT' if blocking else 'INVOKE_DEFAULT', write_still=True, **kwds)
+        finally:
+            context.preferences.view.render_display_type = orig_display_type
+
+
+class B4BRender(_B4BRenderImpl):
     r"""Render all zooms and rotations.
     The implementation of this operator attempts to avoid blocking the UI, so
     that progress can be displayed in the UI and the operation can be cancelled
@@ -66,22 +162,9 @@ class B4BRender(bpy.types.Operator):
         self._cancelled = False
         self._finished = False  # is set after last rendering step or after being cancelled
         self._exception = None
-        context = bpy.context
-        self._orig_zoom = Zoom[context.scene.b4b.zoom]
-        self._orig_rotation = Rotation[context.scene.b4b.rotation]
-        self._orig_nightmode = NightMode[context.scene.b4b.night]
-        day_night_flags = int(context.scene.b4b.render_day_night)
-        if context.scene.b4b.render_current_view_only:
-            self._active_nightmodes = [self._orig_nightmode]
-            self._steps = [(self._orig_zoom, self._orig_rotation, self._orig_nightmode)]
-        else:
-            self._active_nightmodes = [nightmode for nightmode in NightMode if day_night_flags & (1 << nightmode.value) != 0]
-            self._steps = [(z, v, nightmode) for nightmode in self._active_nightmodes for z in Zoom for v in Rotation]
-        self._step = 0
         self._interval = 0.5  # seconds
         self._render_post_args = None
         self._execution_queue = queue.Queue()
-        self._output_files = {nightmode: [] for nightmode in self._active_nightmodes}  # is *only* accessed on main thread, so no need for synchronization
 
     def _post_handler(self, scene, depsgraph):
         r"""Runs after each rendering call.
@@ -98,43 +181,7 @@ class B4BRender(bpy.types.Operator):
                 if self._step < len(self._steps):
                     self.handle_next_step()
                 else:  # after last step, create XML and SC4Model
-                    context = bpy.context
-                    model_name = blend_file_name()
-
-                    if NightMode.DAY in self._active_nightmodes:  # only export XML together with the LODs during Day render
-                        Renderer.create_xml(name=model_name, gid=context.scene.b4b.group_id)
-
-                    if context.scene.b4b.postproc_enabled:
-                        context.window_manager.b4b.progress = 100
-                        context.window_manager.b4b.progress_label = "Creating SC4Model file"
-                        fshgen_script = context.preferences.addons[__package__].preferences.fshgen_path or "fshgen"
-                        if self._active_nightmodes == [NightMode.DAY]:  # Day only
-                            Renderer.create_sc4model(fshgen_script,
-                                                     self._output_files[NightMode.DAY],
-                                                     name=model_name,
-                                                     gid=context.scene.b4b.group_id,
-                                                     nightmode=NightMode.DAY)
-                        else:  # Night
-                            if NightMode.MAXIS_NIGHT in self._active_nightmodes:
-                                Renderer.create_sc4model(fshgen_script,
-                                                         self._output_files.get(NightMode.DAY, []) + self._output_files[NightMode.MAXIS_NIGHT],
-                                                         name=model_name,
-                                                         gid=context.scene.b4b.group_id,
-                                                         nightmode=NightMode.MAXIS_NIGHT)
-                            if NightMode.DARK_NIGHT in self._active_nightmodes:
-                                Renderer.create_sc4model(fshgen_script,
-                                                         self._output_files.get(NightMode.DAY, []) + self._output_files[NightMode.DARK_NIGHT],
-                                                         name=model_name,
-                                                         gid=context.scene.b4b.group_id,
-                                                         nightmode=NightMode.DARK_NIGHT)
-                        delete_intermediate_files = True
-                        if delete_intermediate_files:
-                            for files in self._output_files.values():
-                                for f in files:
-                                    try:
-                                        Path(f).unlink(missing_ok=True)
-                                    except IOError:
-                                        pass  # ignored
+                    self._finalize_outputs(bpy.context)
 
         self.run_on_main_thread(f)
 
@@ -148,15 +195,14 @@ class B4BRender(bpy.types.Operator):
     def run_on_main_thread(self, function):
         self._execution_queue.put(function)
 
-    def execute(self, context):
+    def invoke(self, context, event):
+        """Non-blocking execution of the render operator, so that progress can be displayed in the UI and the operation can be cancelled by pressing ESC."""
         assert threading.current_thread() is threading.main_thread(), "BAT4Blender expected to execute Render operator only on main thread"
         if context.window_manager.b4b.is_rendering:
             print("A rendering operation is already in progress.")
             return {'FINISHED'}
         context.window_manager.b4b.is_rendering = True
-
-        if context.scene.b4b.group_id in ["default", "", None]:  # GID is only generated once
-            bpy.ops.object.b4b_gid_randomize()  # Operators.GID_RANDOMIZE
+        self._ensure_gid(context)
 
         bpy.app.handlers.render_post.append(self._post_handler)
         bpy.app.handlers.render_cancel.append(self._cancel_handler)
@@ -180,11 +226,6 @@ class B4BRender(bpy.types.Operator):
                 return {'CANCELLED' if self._cancelled else 'FINISHED'}
         else:
             return {'PASS_THROUGH'}  # important for render function to be cancelable
-
-    def _switch_view(self, zoom: Zoom, rotation: Rotation, nightmode: NightMode):
-        bpy.context.scene.b4b.zoom = zoom.name
-        bpy.context.scene.b4b.rotation = rotation.name
-        bpy.context.scene.b4b.night = nightmode.name
 
     def execute_queue_loop(self):
         assert threading.current_thread() is threading.main_thread()
@@ -220,41 +261,37 @@ class B4BRender(bpy.types.Operator):
     def handle_next_step(self):
         assert threading.current_thread() is threading.main_thread()
         context = bpy.context
-        z, v, nightmode = self._steps[self._step]
-        print(f"Step ({self._step+1}/{len(self._steps)}): Zoom {z.value+1} {v.name} {nightmode.label()}")
-        self._switch_view(z, v, nightmode)
-        context.window_manager.b4b.progress = 100 * self._step / len(self._steps)  # TODO consider non-linearity
-        context.window_manager.b4b.progress_label = f"({self._step+1}/{len(self._steps)}) Zoom {z.value+1} {v.name} {nightmode.label()}"
-        model_name = blend_file_name()
-        hd = context.scene.b4b.hd == 'HD'
-        Rig.setup(v, z, hd=hd)
-        if context.scene.b4b.supersampling_enabled:
-            supersampling = SuperSampling(
-                enabled=True,
-                magick_exe=(context.preferences.addons[__package__].preferences.imagemagick_path or "magick"),
-                downsampling_filter=context.scene.b4b.downsampling_filter)
-        else:
-            supersampling = SuperSampling(enabled=False)
-        self._render_post_args = Renderer.render_pre(z, v, context.scene.b4b.group_id, model_name, hd=hd, supersampling=supersampling)
+        self._render_post_args = self._prepare_render(context)
 
         # The following render call returns immediately *before* rendering finished,
         # so slicing rendered image is done later in post processing after rendering finished.
         # Likewise, slicing LODs is done in preprocessing.
         def f():  # executing this delayed seems to be important to avoid deadlocks
             assert threading.current_thread() is threading.main_thread()
-            layer = bpy.context.view_layer  # we choose the active layer for rendering if enabled in 'Use for Rendering', otherwise the default layer
-            kwds = dict(layer=layer.name) if layer.use else {}
-            orig_display_type = bpy.context.preferences.view.render_display_type
-            try:
-                bpy.context.preferences.view.render_display_type = 'NONE'  # avoid opening new window for each view (instead use Rendering workspace to see result)
-                bpy.ops.render.render('INVOKE_DEFAULT', write_still=True, **kwds)
-            finally:
-                bpy.context.preferences.view.render_display_type = orig_display_type
+            self._do_render(bpy.context, blocking=False)
 
         if context.scene.b4b.export_lods_only:
             self._post_handler(scene=context.scene, depsgraph=None)
         else:
             self.run_on_main_thread(f)
+
+    def execute(self, context):
+        """Blocking execution of the render operator, for scripts."""
+        try:
+            self._ensure_gid(context)
+            for z, v, nightmode in self._steps:
+                render_post_args = self._prepare_render(context)
+                if not context.scene.b4b.export_lods_only:
+                    self._do_render(context, blocking=True)
+                self._output_files[nightmode].extend(Renderer.render_post(z, v, context.scene.b4b.group_id, *render_post_args))
+                print("-" * 60)
+                self._step += 1
+            self._finalize_outputs(context)
+            return {'FINISHED'}
+        except BAT4BlenderUserError as e:
+            # print(str(e), file=sys.stderr)
+            self.report({'ERROR'}, str(e))
+            return {'CANCELLED'}
 
 
 class B4BCamSetup(bpy.types.Operator):
