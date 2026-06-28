@@ -73,11 +73,11 @@ for filepath in blend_files:
     bpy.ops.wm.open_mainfile(filepath=filepath)
     bpy.ops.object.b4b_render()
 ```
-You can run Blender with a Python script from the command line using:
+Run Blender with a Python script from the command line (preferred):
 ```bash
-blender --background --python script.py`
+blender --background --python script.py
 ```
-(Running it from the *Scripting* tab inside Blender would currently [fail](https://blender.stackexchange.com/questions/14948/opening-a-blender-file-during-python-script-execution-without-changing-context)).
+or execute it from the *Scripting* tab inside Blender.
 
 Alternatively, without a script:
 ```bash

@@ -180,6 +180,20 @@ class LOD:
         bpy.context.scene.collection.objects.link(obj)  # linked to scene collection instead of BAT4Blender collection as the latter might be invisible (which would break the subsequent slice operations)
         return obj
 
+    def _get_fixed_context_override():
+        # Workaround for "Context missing active object", see:
+        # https://blender.stackexchange.com/questions/14948/opening-a-blender-file-during-python-script-execution-without-changing-context
+        # This issue happens when switching .blend file using `bpy.ops.wm.open_mainfile` when scripting from within Blender, i.e. without `--background` mode.
+        for window in bpy.context.window_manager.windows:
+            screen = window.screen
+            for area in screen.areas:
+                if area.type == 'VIEW_3D':
+                    for region in area.regions:
+                        if region.type == 'WINDOW':
+                            override = {'window': window, 'screen': screen, 'area': area, 'region': region}
+                            return override
+        return {}
+
     def sliced(lod, cam, canvas):
         r"""Slice up the visible part of the LOD along the canvas tile grid and
         return a dictionary of the tile positions and the sliced LOD objects.
@@ -192,22 +206,23 @@ class LOD:
         lod_visible.parent = cam  # for local coordinates (to find vertices inside tile boundary)
         lod_visible.matrix_parent_inverse = cam.matrix_world.inverted()  # TODO or .matrix_local?
 
-        if bpy.context.mode != 'OBJECT':
-            bpy.ops.object.mode_set(mode='OBJECT')
-        bpy.ops.object.select_all(action='DESELECT')
-        bpy.context.view_layer.objects.active = lod_visible
+        with bpy.context.temp_override(**LOD._get_fixed_context_override()):
+            if bpy.context.mode != 'OBJECT':
+                bpy.ops.object.mode_set(mode='OBJECT')
+            bpy.ops.object.select_all(action='DESELECT')
+            bpy.context.view_layer.objects.active = lod_visible
 
-        # apply bisect operator along grid (multiple times)
-        bpy.ops.object.mode_set(mode='EDIT')
-        for no, coords in [(Vector([1, 0, 0]), canvas_grid.column_coords),
-                           (Vector([0, 1, 0]), canvas_grid.row_coords)]:
-            for co in coords[1:-1]:
-                bpy.ops.mesh.select_all(action='SELECT')
-                plane_co = cam.matrix_world @ co - cam.location
-                plane_no = cam.matrix_world @ no - cam.location
-                bpy.ops.mesh.bisect(plane_co=plane_co, plane_no=plane_no)
-        bpy.ops.mesh.select_all(action='DESELECT')
-        bpy.ops.object.mode_set(mode='OBJECT')
+            # apply bisect operator along grid (multiple times)
+            bpy.ops.object.mode_set(mode='EDIT')
+            for no, coords in [(Vector([1, 0, 0]), canvas_grid.column_coords),
+                               (Vector([0, 1, 0]), canvas_grid.row_coords)]:
+                for co in coords[1:-1]:
+                    bpy.ops.mesh.select_all(action='SELECT')
+                    plane_co = cam.matrix_world @ co - cam.location
+                    plane_no = cam.matrix_world @ no - cam.location
+                    bpy.ops.mesh.bisect(plane_co=plane_co, plane_no=plane_no)
+            bpy.ops.mesh.select_all(action='DESELECT')
+            bpy.ops.object.mode_set(mode='OBJECT')
 
         bm = bmesh.new()
         bm.from_mesh(lod_visible.data)
